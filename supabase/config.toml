@@ -1,0 +1,9 @@
+project_id = "dawasetu"
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed/*.sql"]
+
+[auth.sessions]
+timebox = "24h"
+inactivity_timeout = "30m"
