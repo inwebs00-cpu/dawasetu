@@ -26,6 +26,29 @@ body {
   margin: 0;
 }
 
+.nav-link {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.7rem;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.nav-link:hover {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.nav-link-active {
+  color: #047857;
+}
+
 button,
 input,
 select,

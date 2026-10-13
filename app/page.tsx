@@ -1,14 +1,179 @@
 import Link from "next/link";
+import {
+  Activity,
+  ArrowRight,
+  BadgeCheck,
+  Clock3,
+  HeartPulse,
+  MapPin,
+  Pill,
+  ShieldCheck,
+  Sparkles,
+  Stethoscope,
+  Store,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Brand } from "@/components/brand/brand";
 import { BusinessDirectoryCard } from "@/components/business/business-directory-card";
 import { HomeSearch } from "@/components/search/home-search";
 import { Button } from "@/components/ui/button";
-import { getMedicineCategories } from "@/services/medicine-search";
+import {
+  getMedicineCategories,
+  type MedicineCategory,
+} from "@/services/medicine-search";
 import { listPublicBusinesses } from "@/services/business-directory";
 import { listPublicRedirectWebsites } from "@/services/redirect-websites";
 
 export const dynamic = "force-dynamic";
+
+const benefits: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  tone: string;
+}[] = [
+  {
+    icon: Activity,
+    title: "Partner reported",
+    description: "See availability shared by participating businesses.",
+    tone: "bg-emerald-50 text-emerald-700",
+  },
+  {
+    icon: MapPin,
+    title: "Search nearby",
+    description: "Use your location once to sort results by distance.",
+    tone: "bg-sky-50 text-sky-700",
+  },
+  {
+    icon: BadgeCheck,
+    title: "Reviewed partners",
+    description: "Public listings are limited to approved businesses.",
+    tone: "bg-amber-50 text-amber-700",
+  },
+  {
+    icon: Clock3,
+    title: "Save a trip",
+    description: "Call the pharmacy to confirm before you travel.",
+    tone: "bg-violet-50 text-violet-700",
+  },
+];
+
+const steps = [
+  {
+    number: "01",
+    title: "Search a medicine",
+    description: "Look up a brand, product, strength or composition.",
+    icon: Pill,
+    tone: "bg-sky-100 text-sky-700",
+  },
+  {
+    number: "02",
+    title: "Check nearby",
+    description: "See partner reports and sort them by distance.",
+    icon: MapPin,
+    tone: "bg-emerald-100 text-emerald-700",
+  },
+  {
+    number: "03",
+    title: "Contact the pharmacy",
+    description: "Call or message to confirm the latest stock status.",
+    icon: Store,
+    tone: "bg-orange-100 text-orange-700",
+  },
+  {
+    number: "04",
+    title: "Choose your next step",
+    description: "Get directions and speak with a pharmacist if needed.",
+    icon: HeartPulse,
+    tone: "bg-violet-100 text-violet-700",
+  },
+];
+
+const defaultCategories: MedicineCategory[] = [
+  { slug: "pain-relief", name: "Pain Relief" },
+  { slug: "antibiotics", name: "Antibiotics" },
+  { slug: "diabetes-care", name: "Diabetes Care" },
+  { slug: "cardiac-care", name: "Cardiac Care" },
+  { slug: "vitamins-supplements", name: "Vitamins & Supplements" },
+  { slug: "respiratory-care", name: "Respiratory Care" },
+  { slug: "gastro-care", name: "Gastro Care" },
+  { slug: "skin-care", name: "Skin Care" },
+];
+
+function categoryStyle(name: string) {
+  const value = name.toLowerCase();
+  if (/heart|cardiac|blood pressure/.test(value)) {
+    return { icon: HeartPulse, tone: "bg-rose-50 text-rose-600" };
+  }
+  if (/diabetes|sugar/.test(value)) {
+    return { icon: Activity, tone: "bg-sky-50 text-sky-700" };
+  }
+  if (/vitamin|supplement|nutrition/.test(value)) {
+    return { icon: ShieldCheck, tone: "bg-lime-50 text-lime-700" };
+  }
+  if (/respiratory|breath|lung|cold|cough/.test(value)) {
+    return { icon: Activity, tone: "bg-cyan-50 text-cyan-700" };
+  }
+  if (/skin|derma/.test(value)) {
+    return { icon: Sparkles, tone: "bg-orange-50 text-orange-700" };
+  }
+  return { icon: Pill, tone: "bg-teal-50 text-teal-700" };
+}
+
+function HeroMapIllustration() {
+  return (
+    <div
+      aria-hidden="true"
+      className="relative mx-auto aspect-[1.08] w-full max-w-[490px] overflow-hidden rounded-[2rem] border border-white/80 bg-[radial-gradient(ellipse_at_70%_20%,_rgba(74,195,157,0.24),_transparent_34%),linear-gradient(140deg,_#dff3f2_0%,_#edf8fb_55%,_#d4eeea_100%)] shadow-[0_28px_70px_-38px_rgba(17,78,80,0.5)]"
+    >
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,_rgba(255,255,255,0.36)_1px,_transparent_1px),linear-gradient(rgba(255,255,255,0.36)_1px,_transparent_1px)] bg-size-[42px_42px]" />
+      <div className="absolute -top-14 -right-8 size-64 rounded-full border-[34px] border-white/35" />
+      <div className="absolute top-[44%] -left-[8%] h-20 w-[118%] rotate-[-23deg] rounded-[50%] border-y-[18px] border-white/70" />
+      <div className="absolute top-[47%] -left-[10%] h-14 w-[120%] rotate-[24deg] rounded-[50%] border-y-[13px] border-[#b6e5d5]/75" />
+      <div className="absolute top-[18%] left-[16%] grid size-12 place-items-center rounded-2xl border border-white bg-white text-teal-800 shadow-lg shadow-teal-900/10">
+        <Store className="size-5" />
+      </div>
+      <div className="absolute top-[25%] right-[18%] grid size-14 place-items-center rounded-2xl border border-white bg-white text-emerald-700 shadow-lg shadow-teal-900/10">
+        <MapPin className="size-6" />
+      </div>
+      <div className="absolute bottom-[25%] left-[28%] grid size-11 place-items-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-lg shadow-emerald-900/20">
+        <Pill className="size-5 -rotate-45" />
+      </div>
+      <div className="absolute right-[15%] bottom-[19%] grid size-10 place-items-center rounded-full border-4 border-white bg-sky-600 text-white shadow-lg shadow-sky-900/20">
+        <MapPin className="size-4" />
+      </div>
+      <div className="absolute top-[38%] right-5 max-w-[205px] rounded-2xl border border-white/90 bg-white/95 p-4 shadow-xl shadow-slate-900/10 sm:right-8 sm:p-5">
+        <div className="flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+            <BadgeCheck className="size-5" />
+          </span>
+          <span>
+            <span className="block text-sm font-bold text-slate-900">
+              Availability, closer to you
+            </span>
+            <span className="mt-1 block text-xs leading-5 text-slate-600">
+              Check partner updates before you make the trip.
+            </span>
+          </span>
+        </div>
+      </div>
+      <div className="absolute right-5 bottom-6 left-5 flex items-center gap-3 rounded-2xl border border-white/90 bg-white/95 px-4 py-3 shadow-lg shadow-slate-900/10 sm:right-8 sm:bottom-8 sm:left-8">
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-teal-50 text-teal-800">
+          <ShieldCheck className="size-5" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-slate-900">
+            Verified public partners
+          </span>
+          <span className="mt-0.5 block text-xs text-slate-600">
+            Distributor inventory stays private.
+          </span>
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export default async function HomePage() {
   const [categories, directory, redirectWebsites] = await Promise.all([
@@ -16,231 +181,259 @@ export default async function HomePage() {
     listPublicBusinesses(),
     listPublicRedirectWebsites(),
   ]);
+  const homepageCategories =
+    categories.length > 0 ? categories : defaultCategories;
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,_#f7fbfa_0%,_#ffffff_55%,_#f4f9f7_100%)] px-4 py-4 sm:px-8 sm:py-6">
-      <div className="mx-auto max-w-7xl">
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm sm:px-6">
+    <main className="min-h-screen bg-[#f7fbfa] pb-24 text-slate-900 lg:pb-8">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur sm:px-8">
+        <div className="mx-auto flex min-h-[76px] max-w-7xl items-center justify-between gap-4">
           <Brand />
           <nav
             aria-label="Main navigation"
-            className="flex flex-wrap items-center gap-1 sm:gap-2"
+            className="hidden items-center gap-1 lg:flex"
           >
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/">Home</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/medicines">Find Medicine</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/pharmacies">Pharmacies</Link>
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="hidden sm:inline-flex"
-            >
-              <Link href="/doctors">Doctor appointments</Link>
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="hidden md:inline-flex"
-            >
-              <Link href="/about">About</Link>
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="hidden md:inline-flex"
-            >
-              <Link href="/blog">Blog</Link>
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="hidden md:inline-flex"
-            >
-              <Link href="/contact">Contact</Link>
-            </Button>
+            <Link href="/" className="nav-link nav-link-active">
+              Home
+            </Link>
+            <Link href="/medicines" className="nav-link">
+              Find medicine
+            </Link>
+            <Link href="/pharmacies" className="nav-link">
+              Pharmacies
+            </Link>
+            <Link href="/about" className="nav-link">
+              About
+            </Link>
+            <Link href="/blog" className="nav-link">
+              Blog
+            </Link>
+            <Link href="/contact" className="nav-link">
+              Contact
+            </Link>
+          </nav>
+          <div className="hidden items-center gap-2 lg:flex">
             <Button asChild variant="secondary" size="sm">
               <Link href="/login">Login</Link>
             </Button>
-            <Button asChild size="sm">
+            <Button
+              asChild
+              size="sm"
+              className="bg-emerald-700 hover:bg-emerald-800"
+            >
               <Link href="/signup">Sign up</Link>
             </Button>
-          </nav>
-        </header>
-
-        <section className="relative my-5 overflow-hidden rounded-[2rem] bg-[radial-gradient(ellipse_at_90%_5%,_rgba(92,220,164,0.3),_transparent_35%),linear-gradient(120deg,_#0d4e55_0%,_#126f68_53%,_#1a8c63_100%)] px-5 py-12 text-white shadow-[0_28px_80px_-45px_rgba(15,76,78,0.7)] sm:px-10 sm:py-16 lg:px-14 lg:py-20">
-          <div className="relative z-10 max-w-3xl">
-            <p className="inline-flex rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-[0.14em] text-teal-50 uppercase">
-              India’s Medicine Availability Network
-            </p>
-            <h1 className="mt-5 text-4xl leading-[1.08] font-semibold tracking-[-0.045em] sm:text-6xl">
-              Find your medicines nearby.
-            </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-teal-50 sm:text-lg">
-              Search partner-reported availability at approved pharmacies,
-              clinics and nursing homes. Call to confirm before you travel.
-            </p>
-            <div className="mt-8 rounded-2xl bg-white p-2 shadow-xl sm:p-3">
-              <HomeSearch />
-            </div>
-            <p className="mt-3 text-xs leading-5 text-teal-50">
-              Find Medicines. Find Nearby. · Search does not place an order or
-              recommend substitutions.
-            </p>
           </div>
-        </section>
-
-        <section aria-labelledby="benefits-title" className="py-7 sm:py-10">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-teal-800">
-                A more informed visit
-              </p>
-              <h2
-                id="benefits-title"
-                className="mt-1 text-2xl font-semibold tracking-tight text-slate-950"
-              >
-                Availability, with clarity
-              </h2>
-            </div>
+          <div className="flex items-center gap-2 lg:hidden">
             <Link
-              className="text-sm font-semibold text-teal-800 hover:underline"
-              href="/about"
+              href="/login"
+              className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
             >
-              How DawaSetu works
+              Login
             </Link>
+            <Button
+              asChild
+              size="sm"
+              className="bg-emerald-700 hover:bg-emerald-800"
+            >
+              <Link href="/signup">Join</Link>
+            </Button>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              [
-                "Partner reported",
-                "Availability updates come from participating businesses.",
-              ],
-              [
-                "Nearby options",
-                "Sort search results by distance with a one-time location request.",
-              ],
-              [
-                "Approved partners",
-                "Listings are limited to businesses reviewed by DawaSetu.",
-              ],
-              [
-                "Confirm before travel",
-                "Call or message the pharmacy because stock can change.",
-              ],
-            ].map(([title, text]) => (
-              <article
-                key={title}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-              >
-                <h3 className="font-semibold text-slate-900">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
-              </article>
-            ))}
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-8">
+        <section className="relative isolate mt-5 overflow-hidden rounded-[2rem] border border-[#dceeed] bg-[radial-gradient(ellipse_at_4%_4%,_rgba(255,255,255,0.95),_transparent_42%),linear-gradient(118deg,_#eef8fb_0%,_#e8f6f4_54%,_#e1f3ec_100%)] px-5 py-8 shadow-[0_22px_55px_-42px_rgba(15,62,68,0.46)] sm:mt-7 sm:px-9 sm:py-12 lg:px-12 lg:py-14">
+          <div className="pointer-events-none absolute -top-24 left-[43%] size-80 rounded-full bg-white/40 blur-3xl" />
+          <div className="relative grid items-center gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
+            <div className="relative z-10">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/75 px-3.5 py-1.5 text-xs font-bold tracking-[0.12em] text-emerald-800 uppercase shadow-sm">
+                <span className="size-2 rounded-full bg-emerald-500" />
+                India’s medicine availability network
+              </span>
+              <h1 className="mt-5 max-w-[700px] text-[clamp(2.25rem,4.6vw,3.75rem)] leading-[1.06] font-bold tracking-[-0.055em] text-[#12314a]">
+                Find your medicines{" "}
+                <span className="text-emerald-700">nearby.</span>
+              </h1>
+              <p className="mt-4 max-w-xl text-base leading-7 text-slate-700 sm:text-lg sm:leading-8">
+                Check partner-reported availability at nearby pharmacies,
+                clinics and nursing homes. Save time and call to confirm before
+                you travel.
+              </p>
+              <div className="mt-7 max-w-2xl">
+                <HomeSearch />
+              </div>
+              <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-slate-600">
+                <ShieldCheck
+                  aria-hidden="true"
+                  className="mt-0.5 size-4 shrink-0 text-emerald-700"
+                />
+                Availability can change. DawaSetu does not sell medicines or
+                recommend prescription substitutions.
+              </p>
+            </div>
+            <div className="hidden lg:block">
+              <HeroMapIllustration />
+            </div>
           </div>
         </section>
 
-        {categories.length > 0 && (
-          <section aria-labelledby="categories-title" className="py-7 sm:py-10">
-            <div className="mb-5">
-              <p className="text-sm font-semibold text-teal-800">
-                Browse by care area
-              </p>
-              <h2
-                id="categories-title"
-                className="mt-1 text-2xl font-semibold tracking-tight text-slate-950"
+        <section
+          aria-label="DawaSetu benefits"
+          className="grid grid-cols-2 gap-3 py-6 sm:grid-cols-4 sm:gap-4 sm:py-8"
+        >
+          {benefits.map(({ icon: Icon, title, description, tone }) => (
+            <article
+              key={title}
+              className="flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-[0_8px_25px_-22px_rgba(15,23,42,0.4)] sm:p-5"
+            >
+              <span
+                className={`grid size-10 shrink-0 place-items-center rounded-xl ${tone}`}
               >
-                Medicine categories
-              </h2>
-            </div>
-            <div className="flex flex-wrap gap-2.5">
-              {categories.map((category) => (
-                <Link
-                  key={category.slug}
-                  href={`/medicines?category=${encodeURIComponent(category.slug)}`}
-                  className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-900"
+                <Icon aria-hidden="true" className="size-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-bold text-slate-900">
+                  {title}
+                </span>
+                <span className="mt-1 hidden text-xs leading-5 text-slate-600 sm:block">
+                  {description}
+                </span>
+              </span>
+            </article>
+          ))}
+        </section>
+
+        {homepageCategories.length > 0 && (
+          <section aria-labelledby="categories-title" className="py-7 sm:py-10">
+            <div className="mb-5 flex items-end justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-emerald-800">
+                  Explore the medicine directory
+                </p>
+                <h2
+                  id="categories-title"
+                  className="mt-1 text-2xl font-bold tracking-tight text-[#12314a] sm:text-3xl"
                 >
-                  {category.name}
-                </Link>
-              ))}
+                  Browse by category
+                </h2>
+              </div>
+              <Link
+                href="/medicines"
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-50"
+              >
+                View all <ArrowRight aria-hidden="true" className="size-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+              {homepageCategories.slice(0, 8).map((category) => {
+                const { icon: Icon, tone } = categoryStyle(category.name);
+                return (
+                  <Link
+                    key={category.slug}
+                    href={`/medicines?category=${encodeURIComponent(category.slug)}`}
+                    className="group flex min-h-32 flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-5 text-center shadow-[0_8px_22px_-20px_rgba(15,23,42,0.4)] transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+                  >
+                    <span
+                      className={`grid size-12 place-items-center rounded-2xl transition group-hover:scale-105 ${tone}`}
+                    >
+                      <Icon aria-hidden="true" className="size-6" />
+                    </span>
+                    <span className="text-sm leading-5 font-semibold text-slate-800">
+                      {category.name}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           </section>
         )}
 
         <section
-          id="how-it-works"
           aria-labelledby="how-title"
-          className="my-7 rounded-3xl border border-teal-100 bg-teal-50/70 p-5 sm:my-10 sm:p-8"
+          className="grid gap-5 py-7 lg:grid-cols-[1.5fr_0.9fr] lg:py-10"
         >
-          <div className="max-w-2xl">
-            <p className="text-sm font-semibold text-teal-800">Simple steps</p>
+          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+            <p className="text-sm font-semibold text-emerald-800">
+              Simple steps
+            </p>
             <h2
               id="how-title"
-              className="mt-1 text-2xl font-semibold tracking-tight text-slate-950"
+              className="mt-1 text-2xl font-bold tracking-tight text-[#12314a] sm:text-3xl"
             >
               How DawaSetu works
             </h2>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {steps.map(({ number, title, description, icon: Icon, tone }) => (
+                <article key={number} className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="grid size-8 place-items-center rounded-full bg-[#153d58] text-xs font-bold text-white">
+                      {number}
+                    </span>
+                    <span
+                      className={`grid size-11 place-items-center rounded-full ${tone}`}
+                    >
+                      <Icon aria-hidden="true" className="size-5" />
+                    </span>
+                  </div>
+                  <h3 className="mt-3 text-sm font-bold text-slate-900">
+                    {title}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-5 text-slate-600">
+                    {description}
+                  </p>
+                </article>
+              ))}
+            </div>
           </div>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {[
-              [
-                "01",
-                "Search medicine",
-                "Look up a brand, medicine name, strength or composition.",
-              ],
-              [
-                "02",
-                "Check nearby",
-                "See participating businesses that report a matching item.",
-              ],
-              [
-                "03",
-                "Contact the partner",
-                "Call, message or get directions, then confirm availability.",
-              ],
-            ].map(([step, title, text]) => (
-              <article
-                key={step}
-                className="rounded-2xl border border-white bg-white p-5"
-              >
-                <span className="text-sm font-bold tracking-wider text-teal-700">
-                  {step}
-                </span>
-                <h3 className="mt-2 font-semibold text-slate-950">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
-              </article>
-            ))}
-          </div>
+          <aside className="relative overflow-hidden rounded-[1.75rem] border border-emerald-100 bg-[linear-gradient(145deg,_#eff9f3_0%,_#e6f6f0_100%)] p-5 sm:p-7">
+            <ShieldCheck
+              aria-hidden="true"
+              className="absolute top-5 right-5 size-12 text-emerald-700/80 sm:size-14"
+            />
+            <p className="text-sm font-semibold text-emerald-800">
+              Your health, your choice
+            </p>
+            <h2 className="mt-2 max-w-xs text-2xl leading-tight font-bold tracking-tight text-[#12314a]">
+              Clear availability. No medical guesswork.
+            </h2>
+            <p className="mt-3 max-w-sm text-sm leading-6 text-slate-700">
+              DawaSetu helps you connect with a pharmacy. It does not diagnose,
+              sell medicines or decide whether one medicine can replace another.
+            </p>
+            <Link
+              href="/about"
+              className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-50"
+            >
+              Learn about DawaSetu{" "}
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+          </aside>
         </section>
 
         <section aria-labelledby="partners-title" className="py-7 sm:py-10">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-teal-800">
+              <p className="text-sm font-semibold text-emerald-800">
                 Local network
               </p>
               <h2
                 id="partners-title"
-                className="mt-1 text-2xl font-semibold tracking-tight text-slate-950"
+                className="mt-1 text-2xl font-bold tracking-tight text-[#12314a] sm:text-3xl"
               >
-                Partners reporting availability
+                Partner businesses
               </h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+                Verified pharmacies and care providers with public profiles.
+              </p>
             </div>
             <Button asChild variant="outline">
-              <Link href="/pharmacies">Browse pharmacies</Link>
+              <Link href="/pharmacies">Browse businesses</Link>
             </Button>
           </div>
           {directory.status === "ready" && directory.rows.length > 0 ? (
-            <div className="grid gap-4 lg:grid-cols-3">
-              {directory.rows.slice(0, 3).map((business) => (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {directory.rows.slice(0, 4).map((business) => (
                 <BusinessDirectoryCard
                   key={business.business_id}
                   business={business}
@@ -248,17 +441,21 @@ export default async function HomePage() {
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center">
-              <h3 className="font-semibold text-slate-900">
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-9 text-center">
+              <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-teal-50 text-teal-800">
+                <Store aria-hidden="true" className="size-6" />
+              </span>
+              <h3 className="mt-3 font-semibold text-slate-900">
                 {directory.status === "unconfigured"
-                  ? "Live availability is not connected in this deployment"
+                  ? "Live partner listings are not connected in this deployment"
                   : directory.status === "error"
-                    ? "Partner availability is temporarily unavailable"
-                    : "No partner availability has been reported yet"}
+                    ? "Partner listings are temporarily unavailable"
+                    : "No public partner listings yet"}
               </h3>
               <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600">
-                DawaSetu only shows verified businesses with public availability
-                enabled and current medicine reports.
+                Approved businesses appear here when they enable public profile
+                visibility. Inventory is shown only when the business and
+                medicine are both public.
               </p>
             </div>
           )}
@@ -267,7 +464,7 @@ export default async function HomePage() {
         {redirectWebsites.length > 0 && (
           <section
             aria-labelledby="health-services-title"
-            className="my-8 rounded-3xl border border-sky-100 bg-[linear-gradient(135deg,_#f0f9ff_0%,_#f0fdfa_100%)] px-5 py-7 sm:px-8 sm:py-9"
+            className="my-7 rounded-[1.75rem] border border-sky-100 bg-[linear-gradient(135deg,_#f0f9ff_0%,_#f0fdfa_100%)] px-5 py-7 sm:px-8 sm:py-9"
           >
             <div className="max-w-2xl">
               <p className="text-sm font-semibold text-sky-800">
@@ -275,7 +472,7 @@ export default async function HomePage() {
               </p>
               <h2
                 id="health-services-title"
-                className="mt-1 text-2xl font-semibold tracking-tight text-slate-950"
+                className="mt-1 text-2xl font-bold tracking-tight text-[#12314a]"
               >
                 Find a related service
               </h2>
@@ -319,47 +516,55 @@ export default async function HomePage() {
           </section>
         )}
 
-        <section className="my-8 flex flex-col gap-4 rounded-3xl border border-teal-100 bg-white px-5 py-6 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <div>
-            <p className="text-sm font-semibold text-teal-800">
-              Doctor appointments
-            </p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">
-              Find a doctor and continue to booking.
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
-              Appointment details are provided by Click2Book. DawaSetu does not
-              confirm availability.
-            </p>
+        <section className="my-7 flex flex-col gap-5 rounded-[1.75rem] border border-teal-100 bg-white px-5 py-6 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8">
+          <div className="flex items-start gap-4">
+            <span className="hidden size-12 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sky-800 sm:grid">
+              <Stethoscope aria-hidden="true" className="size-6" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-teal-800">
+                Doctor appointments
+              </p>
+              <h2 className="mt-1 text-xl font-bold tracking-tight text-[#12314a]">
+                Find a doctor and continue to booking.
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Appointment details are provided by Click2Book. DawaSetu does
+                not confirm availability.
+              </p>
+            </div>
           </div>
           <Button asChild className="shrink-0">
             <Link href="/doctors">Browse doctor profiles</Link>
           </Button>
         </section>
 
-        <section className="my-8 rounded-3xl bg-slate-900 px-5 py-8 text-white sm:px-8 sm:py-10">
+        <section className="my-7 overflow-hidden rounded-[1.75rem] bg-[#123d55] px-5 py-7 text-white sm:px-8 sm:py-9">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-teal-300">
+            <div className="max-w-2xl">
+              <p className="text-sm font-semibold text-emerald-300">
                 Pharmacies · Clinics · Nursing homes
               </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
                 Help your community find what is available.
               </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+              <p className="mt-2 text-sm leading-6 text-slate-200">
                 Register your business for review. Public listings and inventory
                 visibility are enabled only after approval.
               </p>
             </div>
-            <Button asChild variant="secondary" size="lg">
+            <Button asChild variant="secondary" size="lg" className="shrink-0">
               <Link href="/signup">Join the network</Link>
             </Button>
           </div>
         </section>
 
-        <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 py-6 text-xs text-slate-500">
+        <footer className="flex flex-col gap-4 border-t border-slate-200 py-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <p>DawaSetu · India’s Medicine Availability Network</p>
-          <nav aria-label="Footer navigation" className="flex flex-wrap gap-4">
+          <nav
+            aria-label="Footer navigation"
+            className="flex flex-wrap gap-x-5 gap-y-2"
+          >
             <Link href="/about" className="hover:text-teal-800">
               About
             </Link>
@@ -375,6 +580,39 @@ export default async function HomePage() {
           </nav>
         </footer>
       </div>
+
+      <nav
+        aria-label="Mobile navigation"
+        className="fixed right-3 bottom-3 left-3 z-50 grid grid-cols-4 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_50px_-18px_rgba(15,23,42,0.35)] backdrop-blur lg:hidden"
+      >
+        <MobileNavLink href="/" icon={Store} label="Home" current />
+        <MobileNavLink href="/medicines" icon={Pill} label="Medicines" />
+        <MobileNavLink href="/pharmacies" icon={Store} label="Pharmacies" />
+        <MobileNavLink href="/login" icon={ShieldCheck} label="Account" />
+      </nav>
     </main>
+  );
+}
+
+function MobileNavLink({
+  href,
+  icon: Icon,
+  label,
+  current = false,
+}: {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  current?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={current ? "page" : undefined}
+      className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[0.68rem] font-semibold transition ${current ? "bg-emerald-50 text-emerald-800" : "text-slate-600 hover:bg-slate-50"}`}
+    >
+      <Icon aria-hidden="true" className="size-4" />
+      {label}
+    </Link>
   );
 }
