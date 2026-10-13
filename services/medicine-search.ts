@@ -86,15 +86,6 @@ export async function searchPublicMedicines(
 ): Promise<SearchResult> {
   const normalizedQuery = query.trim();
   const categorySlug = options.categorySlug ?? null;
-  if (
-    normalizedQuery.length > 120 ||
-    (!categorySlug && normalizedQuery.length < 2) ||
-    (categorySlug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(categorySlug))
-  ) {
-    return { status: "ready", rows: [] };
-  }
-  if (!isSupabaseConfigured()) return { status: "unconfigured" };
-
   const latitude = options.latitude ?? null;
   const longitude = options.longitude ?? null;
   const hasValidCoordinates =
@@ -106,6 +97,14 @@ export async function searchPublicMedicines(
     latitude <= 90 &&
     longitude >= -180 &&
     longitude <= 180;
+  if (
+    normalizedQuery.length > 120 ||
+    (!categorySlug && normalizedQuery.length < 2 && !hasValidCoordinates) ||
+    (categorySlug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(categorySlug))
+  ) {
+    return { status: "ready", rows: [] };
+  }
+  if (!isSupabaseConfigured()) return { status: "unconfigured" };
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -123,10 +122,10 @@ export async function searchPublicMedicines(
       p_category_slug: categorySlug,
     });
     if (error || !Array.isArray(data)) return { status: "error" };
-    await recordPublicMedicineSearch(
-      (data as PublicMedicineSearchRow[]).map((row) => row.medicine_id),
-    );
     if (normalizedQuery.length >= 2) {
+      await recordPublicMedicineSearch(
+        (data as PublicMedicineSearchRow[]).map((row) => row.medicine_id),
+      );
       try {
         const {
           data: { user },
