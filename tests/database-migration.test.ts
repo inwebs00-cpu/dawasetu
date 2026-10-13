@@ -43,6 +43,7 @@ const migrationPaths = [
   "supabase/migrations/20261008330000_payment_refunds.sql",
   "supabase/migrations/20261008340000_security_recovery.sql",
   "supabase/migrations/20261008350000_doctor_booking_profiles.sql",
+  "supabase/migrations/20261014010000_location_only_public_medicine_search.sql",
 ].map((path) => resolve(process.cwd(), path));
 
 describe("DawaSetu core schema migration", () => {
@@ -284,12 +285,23 @@ describe("DawaSetu core schema migration", () => {
       );
     }
 
+    await database.query(
+      "update public.businesses set latitude = 19.076, longitude = 72.8777 where id = $1",
+      [retailId],
+    );
+
     await database.exec("set role anon");
     const results = await database.query<{ business_name: string }>(
       "select business_name from public.search_public_medicine('paracetamol')",
     );
     const directory = await database.query<{ business_name: string }>(
       "select business_name from public.list_public_businesses()",
+    );
+    const nearbyResults = await database.query<{
+      business_name: string;
+      distance_km: number;
+    }>(
+      "select business_name, distance_km from public.search_public_medicine('', 19.076, 72.8777)",
     );
     const distributorProfile = await database.query<{ business_id: string }>(
       "select business_id from public.get_public_business_profile('private-stockist')",
@@ -305,6 +317,9 @@ describe("DawaSetu core schema migration", () => {
     expect(results.rows.map((row) => row.business_name)).toEqual([
       "Public Pharmacy",
     ]);
+    expect(nearbyResults.rows).toHaveLength(1);
+    expect(nearbyResults.rows[0].business_name).toBe("Public Pharmacy");
+    expect(nearbyResults.rows[0].distance_km).toBeCloseTo(0, 6);
     expect(directory.rows.map((row) => row.business_name)).toEqual([
       "Public Pharmacy",
     ]);
