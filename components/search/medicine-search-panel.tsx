@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { searchNearbyAction } from "@/app/medicines/actions";
 import { Button } from "@/components/ui/button";
@@ -30,13 +30,22 @@ export function MedicineSearchPanel({
   const router = useRouter();
   const [nearbyResult, setNearbyResult] = useState<SearchResult | null>(null);
   const [locationMessage, setLocationMessage] = useState("");
+  const [locating, setLocating] = useState(false);
   const [pending, startTransition] = useTransition();
   const result = nearbyResult ?? initialResult;
+  const hasNearbySearch = nearbyResult !== null;
   const activeCategory = categories.find(
     (category) => category.slug === categorySlug,
   );
 
+  useEffect(() => {
+    setNearbyResult(null);
+    setLocationMessage("");
+  }, [categorySlug, query]);
+
   function search(nextQuery: string) {
+    setNearbyResult(null);
+    setLocationMessage("");
     const params = new URLSearchParams();
     params.set("q", nextQuery);
     if (categorySlug) params.set("category", categorySlug);
@@ -44,35 +53,68 @@ export function MedicineSearchPanel({
   }
 
   function searchNearby() {
-    if (!query && !categorySlug) {
-      setLocationMessage("Search for a medicine first, or choose a category.");
-      return;
-    }
     if (!navigator.geolocation) {
-      setLocationMessage("This browser does not provide device location.");
+      setLocationMessage(
+        "Location is unavailable here. Use a secure HTTPS page and allow location access in your browser.",
+      );
       return;
     }
 
+    setNearbyResult(null);
+    setLocating(true);
     setLocationMessage("Requesting a one-time location for this search…");
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         setLocationMessage(
-          "Searching by distance. Your location is used for this request and is not saved.",
+          "Searching by distance. Your precise location is used for this request and is not saved.",
         );
+        setLocating(false);
         startTransition(async () => {
-          const response = await searchNearbyAction(
-            query,
-            coords.latitude,
-            coords.longitude,
-            categorySlug,
-          );
-          setNearbyResult(response);
+          try {
+            const response = await searchNearbyAction(
+              query,
+              coords.latitude,
+              coords.longitude,
+              categorySlug,
+            );
+            setNearbyResult(response);
+            if (response.status !== "ready") {
+              setLocationMessage(
+                "Nearby search is temporarily unavailable. Please try again.",
+              );
+            } else {
+              setLocationMessage(
+                "Showing partner-reported availability by distance. Your precise location is not saved.",
+              );
+            }
+          } catch {
+            setNearbyResult({ status: "error" });
+            setLocationMessage(
+              "Nearby search could not be completed. Please try again.",
+            );
+          }
         });
       },
-      () =>
-        setLocationMessage(
-          "Location was not shared. You can still search the network without it.",
-        ),
+      (error) => {
+        setLocating(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationMessage(
+            "Location access is blocked. Allow location for this site in your browser, then try again.",
+          );
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          setLocationMessage(
+            "Your device could not determine your location. Check device location services and try again.",
+          );
+        } else if (error.code === error.TIMEOUT) {
+          setLocationMessage(
+            "The location request timed out. Try again or search by medicine name.",
+          );
+        } else {
+          setLocationMessage(
+            "Location was not shared. You can still search the network without it.",
+          );
+        }
+      },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 },
     );
   }
@@ -97,9 +139,13 @@ export function MedicineSearchPanel({
             type="button"
             variant="secondary"
             onClick={searchNearby}
-            disabled={pending}
+            disabled={pending || locating}
           >
-            {pending ? "Searching nearby…" : "Use my location"}
+            {locating
+              ? "Getting location…"
+              : pending
+                ? "Searching nearby…"
+                : "Use my location"}
           </Button>
         </div>
         <div className="mt-5">
@@ -159,7 +205,7 @@ export function MedicineSearchPanel({
           title="Search is temporarily unavailable"
           description="Please try again in a little while."
         />
-      ) : !query && !categorySlug ? (
+      ) : !query && !categorySlug && !hasNearbySearch ? (
         <EmptyState
           title="Search the medicine network"
           description="Enter a medicine name or choose a category to see reported availability."
@@ -168,7 +214,13 @@ export function MedicineSearchPanel({
         <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
           <EmptyState
             title="No matching availability found"
-            description="No approved public partner has reported this medicine. You can request it from nearby partners."
+            description={
+              hasNearbySearch
+                ? "No approved public partner has reported current medicine availability yet. Try searching a specific medicine or check again later."
+                : query
+                  ? "No approved public partner has reported this medicine. You can request it from nearby partners."
+                  : `No approved public partner has reported current availability in ${activeCategory?.name ?? "this category"}.`
+            }
           />
           {query.trim().length > 0 && (
             <div className="mt-4 text-center">
