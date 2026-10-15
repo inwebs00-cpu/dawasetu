@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const publicRoutes = [
-  "/",
   "/about",
   "/contact",
   "/blog",
@@ -58,6 +57,10 @@ export function SiteFooter() {
             Refund &amp; cancellation
           </Link>
         </nav>
+        <p className="shrink-0 font-medium text-slate-600 sm:text-right">
+          Made with love in India <span className="text-slate-400">·</span>{" "}
+          <span className="font-semibold text-teal-800">InWebs</span>
+        </p>
       </div>
     </footer>
   );

@@ -33,11 +33,9 @@ export default function PrivacyPolicyPage() {
       <LegalSection title="Who operates DawaSetu">
         <p>
           DawaSetu is an availability discovery and connection platform. The
-          operator is {details.legalName || "the DawaSetu operating entity"}.
-          {details.address
-            ? ` Its operating address is ${details.address}.`
-            : ""}
-          Contact details are published on the <a href="/contact">Contact</a>
+          operator is {details.legalName || "the DawaSetu operating entity"}
+          {details.address ? `, with operating address ${details.address}` : ""}
+          . Contact details are published on the <a href="/contact">Contact</a>{" "}
           page.
         </p>
       </LegalSection>
