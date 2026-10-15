@@ -13,6 +13,7 @@ import {
 import type { AuthActionState } from "@/types/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { LoginPortal } from "@/lib/auth/login-portals";
 
 type AuthAction = (
   previousState: AuthActionState,
@@ -117,25 +118,80 @@ function FormFrame({
   );
 }
 
-export function LoginForm() {
+const portalCopy: Record<
+  LoginPortal,
+  { title: string; intro: string; footer: ReactNode }
+> = {
+  customer: {
+    title: "Welcome back",
+    intro: "Sign in to manage your DawaSetu account and medicine requests.",
+    footer: (
+      <>
+        <span>New to DawaSetu? </span>
+        <Link
+          className="font-semibold text-teal-800 hover:underline"
+          href="/signup"
+        >
+          Create an account
+        </Link>
+      </>
+    ),
+  },
+  admin: {
+    title: "Admin sign in",
+    intro:
+      "Sign in with your DawaSetu staff account. Admin permissions and MFA are checked securely before the workspace opens.",
+    footer: (
+      <span>Admin access is assigned by the DawaSetu platform team.</span>
+    ),
+  },
+  partner: {
+    title: "Pharmacy & clinic sign in",
+    intro:
+      "Manage your approved pharmacy, clinic, or nursing-home availability and requests.",
+    footer: (
+      <>
+        <span>New partner? </span>
+        <Link
+          className="font-semibold text-teal-800 hover:underline"
+          href="/signup"
+        >
+          Create an account
+        </Link>
+        <span>, then submit your business for review.</span>
+      </>
+    ),
+  },
+  distributor: {
+    title: "Distributor sign in",
+    intro:
+      "Open your private stockist workspace and manage approved partner access.",
+    footer: (
+      <span>
+        Distributor access is reviewed and assigned by the DawaSetu team.
+      </span>
+    ),
+  },
+};
+
+const portalLinks: { portal: LoginPortal; label: string; href: string }[] = [
+  { portal: "customer", label: "Customer", href: "/login" },
+  { portal: "partner", label: "Pharmacy / clinic", href: "/partner/login" },
+  { portal: "distributor", label: "Distributor", href: "/distributor/login" },
+  { portal: "admin", label: "Admin", href: "/admin/login" },
+];
+
+export function LoginForm({ portal = "customer" }: { portal?: LoginPortal }) {
+  const copy = portalCopy[portal];
   return (
     <FormFrame
-      title="Welcome back"
-      intro="Sign in to manage your DawaSetu account and partner activity."
+      title={copy.title}
+      intro={copy.intro}
       action={signInAction}
       submitLabel="Sign in"
-      footer={
-        <>
-          <span>New to DawaSetu? </span>
-          <Link
-            className="font-semibold text-teal-800 hover:underline"
-            href="/signup"
-          >
-            Create an account
-          </Link>
-        </>
-      }
+      footer={copy.footer}
     >
+      <input type="hidden" name="portal" value={portal} />
       <Field
         id="login-email"
         label="Email"
@@ -164,6 +220,22 @@ export function LoginForm() {
       >
         Forgot security PIN?
       </Link>
+      <nav
+        aria-label="Other DawaSetu sign-in pages"
+        className="-mt-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4 text-xs"
+      >
+        {portalLinks
+          .filter((item) => item.portal !== portal)
+          .map((item) => (
+            <Link
+              key={item.portal}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-center font-medium text-slate-700 hover:border-teal-300 hover:text-teal-900"
+              href={item.href}
+            >
+              {item.label} sign in
+            </Link>
+          ))}
+      </nav>
     </FormFrame>
   );
 }

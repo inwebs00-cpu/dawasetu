@@ -44,6 +44,9 @@ const migrationPaths = [
   "supabase/migrations/20261008340000_security_recovery.sql",
   "supabase/migrations/20261008350000_doctor_booking_profiles.sql",
   "supabase/migrations/20261014010000_location_only_public_medicine_search.sql",
+  "supabase/migrations/20261015010000_customer_partner_inquiries.sql",
+  "supabase/migrations/20261015020000_admin_user_directory.sql",
+  "supabase/migrations/20261015030000_distributor_inquiries.sql",
 ].map((path) => resolve(process.cwd(), path));
 
 describe("DawaSetu core schema migration", () => {
@@ -747,6 +750,12 @@ describe("DawaSetu core schema migration", () => {
       partnerBusinessId,
       distributorBusinessId,
     ]);
+    await expect(
+      database.query(
+        `select public.create_partner_distributor_inquiry($1, $2, $3, 8, 'Please confirm this stock')`,
+        [partnerBusinessId, distributorBusinessId, medicineId],
+      ),
+    ).rejects.toThrow(/access is not approved/i);
     const rawStockBeforeApproval = await database.query<{ count: number }>(
       "select count(*)::int as count from public.inventory where business_id = $1",
       [distributorBusinessId],
@@ -776,6 +785,58 @@ describe("DawaSetu core schema migration", () => {
       "select product_name, quantity from public.list_distributor_inventory_for_partner($1, $2, 'private b2b')",
       [partnerBusinessId, distributorBusinessId],
     );
+    const inquiry = await database.query<{ inquiry_id: string }>(
+      `select public.create_partner_distributor_inquiry($1, $2, $3, 8, 'Please confirm this stock') as inquiry_id`,
+      [partnerBusinessId, distributorBusinessId, medicineId],
+    );
+    const partnerInquiry = await database.query<{
+      product_name: string;
+      status: string;
+      requested_quantity: number;
+    }>(
+      `select product_name, status, requested_quantity
+       from public.list_my_partner_distributor_inquiries($1)`,
+      [partnerBusinessId],
+    );
+    await expect(
+      database.query("select * from public.distributor_inquiries"),
+    ).rejects.toThrow();
+    await database.exec("reset role");
+
+    await database.exec("set role authenticated");
+    await database.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [distributorId],
+    );
+    const distributorInquiries = await database.query<{
+      partner_name: string;
+      product_name: string;
+      requested_quantity: number;
+      status: string;
+    }>(
+      `select partner_name, product_name, requested_quantity, status
+       from public.list_my_distributor_inquiries($1, 'open')`,
+      [distributorBusinessId],
+    );
+    await database.query(
+      `select public.respond_to_distributor_inquiry($1, $2, 'responded', 'Eight packs reported available')`,
+      [distributorBusinessId, inquiry.rows[0].inquiry_id],
+    );
+    await database.exec("reset role");
+
+    await database.exec("set role authenticated");
+    await database.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [partnerId],
+    );
+    const updatedPartnerInquiry = await database.query<{
+      status: string;
+      response_message: string;
+    }>(
+      `select status, response_message
+       from public.list_my_partner_distributor_inquiries($1)`,
+      [partnerBusinessId],
+    );
     await database.exec("reset role");
 
     const distributor = await database.query<{
@@ -792,6 +853,27 @@ describe("DawaSetu core schema migration", () => {
     expect(rawStockBeforeApproval.rows[0].count).toBe(0);
     expect(authorizedStock.rows).toEqual([
       { product_name: "Private B2B Product", quantity: 17 },
+    ]);
+    expect(partnerInquiry.rows).toEqual([
+      {
+        product_name: "Private B2B Product",
+        status: "open",
+        requested_quantity: 8,
+      },
+    ]);
+    expect(distributorInquiries.rows).toEqual([
+      {
+        partner_name: "B2B Pharmacy",
+        product_name: "Private B2B Product",
+        requested_quantity: 8,
+        status: "open",
+      },
+    ]);
+    expect(updatedPartnerInquiry.rows).toEqual([
+      {
+        status: "responded",
+        response_message: "Eight packs reported available",
+      },
     ]);
     expect(distributor.rows[0].public_availability_enabled).toBe(false);
     expect(publicSearch.rows).toHaveLength(0);
@@ -2963,5 +3045,271 @@ describe("DawaSetu core schema migration", () => {
     expect(audit.rows.map((row) => row.action)).toContain(
       "doctor_booking_profile.created",
     );
+  });
+
+  it("routes private pharmacy inquiries and partner replies through permission-checked database functions", async () => {
+    const customerId = randomUUID();
+    const partnerId = randomUUID();
+    const publicBusinessId = randomUUID();
+    const distributorBusinessId = randomUUID();
+    await database.query(
+      "insert into auth.users (id, email, raw_user_meta_data) values ($1, 'inquiry-customer@example.in', $2), ($3, 'inquiry-partner@example.in', $4)",
+      [
+        customerId,
+        { full_name: "Inquiry Customer" },
+        partnerId,
+        { full_name: "Inquiry Partner" },
+      ],
+    );
+    const retailType = await database.query<{ id: string }>(
+      "select id from public.business_types where slug = 'retail_pharmacy'",
+    );
+    const distributorType = await database.query<{ id: string }>(
+      "select id from public.business_types where slug = 'distributor'",
+    );
+    await database.query(
+      `insert into public.businesses(id, owner_user_id, business_type_id, business_name, slug, phone_e164, address_line1, status, reviewed_at, public_availability_enabled)
+       values ($1, $2, $3, 'Inquiry Pharmacy', $4, '+910000000099', 'Market Road', 'approved', now(), true),
+              ($5, $2, $6, 'Private Stockist', $7, '+910000000098', 'Warehouse Road', 'approved', now(), true)`,
+      [
+        publicBusinessId,
+        partnerId,
+        retailType.rows[0].id,
+        `inquiry-pharmacy-${publicBusinessId.slice(0, 8)}`,
+        distributorBusinessId,
+        distributorType.rows[0].id,
+        `private-stockist-${distributorBusinessId.slice(0, 8)}`,
+      ],
+    );
+
+    await database.exec("set role authenticated");
+    await database.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [customerId],
+    );
+    const created = await database.query<{ id: string }>(
+      "select public.create_partner_inquiry($1, null, 'Please confirm whether the pharmacy is open this evening.') as id",
+      [publicBusinessId],
+    );
+    await expect(
+      database.query(
+        "select public.create_partner_inquiry($1, null, 'This must not reach a distributor.')",
+        [distributorBusinessId],
+      ),
+    ).rejects.toThrow(/not accepting inquiries/i);
+    await expect(
+      database.query(
+        `insert into public.inquiries(customer_user_id, business_id, message)
+         values ($1, $2, 'Direct inserts must be blocked')`,
+        [customerId, publicBusinessId],
+      ),
+    ).rejects.toThrow();
+    await database.exec("reset role");
+
+    await database.exec("set role authenticated");
+    await database.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [partnerId],
+    );
+    await database.query(
+      "select public.respond_to_partner_inquiry($1, $2, 'We are open until 9 PM. Please call before you visit.')",
+      [publicBusinessId, created.rows[0].id],
+    );
+    await database.exec("reset role");
+
+    await database.exec("set role authenticated");
+    await database.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [customerId],
+    );
+    const ownInquiry = await database.query<{
+      status: string;
+      response_message: string;
+    }>("select status, response_message from public.inquiries where id = $1", [
+      created.rows[0].id,
+    ]);
+    const ownNotification = await database.query<{ count: number }>(
+      "select count(*)::int as count from public.notifications where user_id = $1 and event_type = 'business_inquiry_response'",
+      [customerId],
+    );
+    await database.exec("reset role");
+
+    expect(ownInquiry.rows).toEqual([
+      {
+        status: "responded",
+        response_message:
+          "We are open until 9 PM. Please call before you visit.",
+      },
+    ]);
+    expect(ownNotification.rows[0].count).toBe(1);
+  });
+
+  it("restricts the admin user directory and audits account status changes", async () => {
+    const adminId = randomUUID();
+    const customerId = randomUUID();
+    const inactiveId = randomUUID();
+    await database.query(
+      "insert into auth.users (id, email, raw_user_meta_data) values ($1, 'directory-admin@example.in', $2), ($3, 'directory-customer@example.in', $4), ($5, 'directory-inactive@example.in', $6)",
+      [
+        adminId,
+        { full_name: "Directory Admin" },
+        customerId,
+        { full_name: "Searchable Customer" },
+        inactiveId,
+        { full_name: "Inactive Customer" },
+      ],
+    );
+    const superRole = await database.query<{ id: string }>(
+      "select id from public.roles where slug = 'super_admin' and business_id is null",
+    );
+    await database.query(
+      "insert into public.user_roles(user_id, role_id) values ($1, $2)",
+      [adminId, superRole.rows[0].id],
+    );
+    await database.query(
+      "update public.users set status = 'inactive' where id = $1",
+      [inactiveId],
+    );
+    const issueStatusAuthorization = async (
+      targetId: string,
+      requestedValue: string,
+      reason: string,
+    ) => {
+      const authorizationId = randomUUID();
+      await database.exec("reset role");
+      await database.exec("set role service_role");
+      await database.query(
+        `insert into public.admin_action_authorizations
+          (id, user_id, action_key, target_id, requested_value, reason)
+         values ($1, $2, 'user.status.change', $3, $4, $5)`,
+        [authorizationId, adminId, targetId, requestedValue, reason],
+      );
+      await database.exec("reset role");
+      await database.exec("set role authenticated");
+      await database.query(
+        "select set_config('request.jwt.claim.sub', $1, false)",
+        [adminId],
+      );
+      return authorizationId;
+    };
+
+    await database.exec("set role authenticated");
+    await database.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [customerId],
+    );
+    await expect(
+      database.query("select * from public.admin_list_users()"),
+    ).rejects.toThrow(/permission denied/i);
+    await expect(
+      database.query("select public.admin_set_user_status($1)", [randomUUID()]),
+    ).rejects.toThrow(/permission denied/i);
+    await database.exec("reset role");
+
+    await database.exec("set role authenticated");
+    await database.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [adminId],
+    );
+    await expect(
+      database.query("select * from public.admin_action_authorizations"),
+    ).rejects.toThrow();
+    const matches = await database.query<{
+      user_id: string;
+      email: string;
+      account_type: string;
+      user_status: string;
+    }>(
+      "select user_id, email, account_type, user_status from public.admin_list_users('searchable', null, 'active', 50, 0)",
+    );
+    expect(matches.rows).toEqual([
+      {
+        user_id: customerId,
+        email: "directory-customer@example.in",
+        account_type: "customer",
+        user_status: "active",
+      },
+    ]);
+    const inactiveUsers = await database.query<{ user_id: string }>(
+      "select user_id from public.admin_list_users(null, null, 'inactive', 50, 0)",
+    );
+    expect(inactiveUsers.rows.map((row) => row.user_id)).toContain(inactiveId);
+    await expect(
+      database.query(
+        "select * from public.admin_list_users(null, 'unexpected', null, 50, 0)",
+      ),
+    ).rejects.toThrow(/invalid user directory filter/i);
+    await expect(
+      database.query("select public.admin_set_user_status($1)", [randomUUID()]),
+    ).rejects.toThrow(/missing or expired/i);
+    const invalidReasonAuthorization = await issueStatusAuthorization(
+      customerId,
+      "suspended",
+      "No",
+    );
+    await expect(
+      database.query("select public.admin_set_user_status($1)", [
+        invalidReasonAuthorization,
+      ]),
+    ).rejects.toThrow(/provide a reason/i);
+    const authorizationId = await issueStatusAuthorization(
+      customerId,
+      "suspended",
+      "Repeated abuse reports",
+    );
+    await database.query("select public.admin_set_user_status($1)", [
+      authorizationId,
+    ]);
+    await expect(
+      database.query("select public.admin_set_user_status($1)", [
+        authorizationId,
+      ]),
+    ).rejects.toThrow(/missing or expired/i);
+    const selfAuthorization = await issueStatusAuthorization(
+      adminId,
+      "active",
+      "Cannot change self",
+    );
+    await expect(
+      database.query("select public.admin_set_user_status($1)", [
+        selfAuthorization,
+      ]),
+    ).rejects.toThrow(/cannot change their own/i);
+    await database.exec("reset role");
+
+    const status = await database.query<{ status: string }>(
+      "select status from public.users where id = $1",
+      [customerId],
+    );
+    const audit = await database.query<{
+      action: string;
+      previous_value: { status: string };
+      new_value: { status: string };
+      metadata: { reason: string };
+    }>(
+      "select action, previous_value, new_value, metadata from public.audit_logs where actor_user_id = $1 and record_id = $2",
+      [adminId, customerId],
+    );
+    expect(status.rows[0].status).toBe("suspended");
+    expect(audit.rows).toEqual([
+      {
+        action: "user.status_changed",
+        previous_value: { status: "active" },
+        new_value: { status: "suspended" },
+        metadata: { reason: "Repeated abuse reports" },
+      },
+    ]);
+    const grants = await database.query<{
+      grantee: string;
+      privilege_type: string;
+    }>(
+      `select grantee, privilege_type from information_schema.routine_privileges
+       where routine_schema = 'public' and routine_name = 'admin_list_users'`,
+    );
+    expect(grants.rows).toContainEqual({
+      grantee: "authenticated",
+      privilege_type: "EXECUTE",
+    });
+    expect(grants.rows.some((grant) => grant.grantee === "anon")).toBe(false);
   });
 });

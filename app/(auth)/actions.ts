@@ -3,6 +3,12 @@
 import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  getLoginDestination,
+  isLoginPortal,
+  type LoginBusiness,
+  type LoginPortal,
+} from "@/lib/auth/login-portals";
 import type { AuthActionState } from "@/types/auth";
 
 function textField(formData: FormData, name: string): string {
@@ -71,9 +77,16 @@ export async function signInAction(
 ): Promise<AuthActionState> {
   const email = normalizedEmail(textField(formData, "email"));
   const password = textField(formData, "password");
-  if (!email || password.length < 1 || password.length > 128) {
+  const portalValue = textField(formData, "portal") || "customer";
+  if (
+    !email ||
+    password.length < 1 ||
+    password.length > 128 ||
+    !isLoginPortal(portalValue)
+  ) {
     return { error: "Enter a valid email and password." };
   }
+  const portal: LoginPortal = portalValue;
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -82,7 +95,49 @@ export async function signInAction(
       password,
     });
     if (error) return { error: "Email or password is incorrect." };
-    return await redirectAfterAuthentication(supabase, "/account");
+
+    let destination: string | null = null;
+    if (portal === "admin") {
+      const { data, error: permissionError } = await supabase.rpc(
+        "has_platform_permission",
+        { p_permission_key: "dashboard.view" },
+      );
+      if (permissionError) {
+        await supabase.auth.signOut();
+        return {
+          error: "Admin access could not be verified. Please try again.",
+        };
+      }
+      destination = getLoginDestination(portal, [], data === true);
+    } else if (portal === "partner" || portal === "distributor") {
+      const { data, error: businessesError } =
+        await supabase.rpc("list_my_businesses");
+      if (businessesError) {
+        await supabase.auth.signOut();
+        return {
+          error: "Business access could not be verified. Please try again.",
+        };
+      }
+      destination = getLoginDestination(
+        portal,
+        (data ?? []) as LoginBusiness[],
+      );
+    } else {
+      destination = getLoginDestination(portal);
+    }
+
+    if (!destination) {
+      await supabase.auth.signOut();
+      return {
+        error:
+          portal === "admin"
+            ? "This account is not assigned to the admin workspace."
+            : portal === "partner"
+              ? "No pharmacy, clinic, or nursing-home business is linked to this account yet."
+              : "No distributor business is linked to this account yet.",
+      };
+    }
+    return await redirectAfterAuthentication(supabase, destination);
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
     return clientError();

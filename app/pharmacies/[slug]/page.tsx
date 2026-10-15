@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { Brand } from "@/components/brand/brand";
+import { BusinessInquiryForm } from "@/components/business/business-inquiry-form";
 import { BusinessReviewForm } from "@/components/business/business-review-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -346,6 +347,47 @@ export default async function PublicBusinessPage({
             </div>
           </section>
         )}
+        <section
+          id="inquiry"
+          aria-labelledby="partner-inquiry-title"
+          className="mt-7"
+        >
+          <Card>
+            <CardHeader>
+              <p className="text-sm font-semibold text-teal-800">
+                Contact this partner
+              </p>
+              <CardTitle id="partner-inquiry-title">
+                Send a pharmacy inquiry
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {userId ? (
+                <div className="max-w-2xl">
+                  <BusinessInquiryForm
+                    businessId={profile.business_id}
+                    businessSlug={profile.business_slug}
+                    medicines={result.medicines}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm leading-6 text-slate-600">
+                    Sign in with a customer account to send a private in-app
+                    message.
+                  </p>
+                  <Button asChild variant="outline">
+                    <Link
+                      href={`/login?next=${encodeURIComponent(`/pharmacies/${profile.business_slug}#inquiry`)}`}
+                    >
+                      Sign in to inquire
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
         <section
           id="reviews"
           aria-labelledby="business-reviews-title"

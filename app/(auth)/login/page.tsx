@@ -5,5 +5,5 @@ import { LoginForm } from "@/components/auth/auth-form";
 export const metadata: Metadata = { title: "Sign in" };
 
 export default function LoginPage() {
-  return <LoginForm />;
+  return <LoginForm portal="customer" />;
 }

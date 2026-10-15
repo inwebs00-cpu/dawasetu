@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { Brand } from "@/components/brand/brand";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/states";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { requirePlatformPermission } from "@/lib/auth/authorization";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +18,49 @@ interface Summary {
   total_requests: number;
   active_medicines: number;
   total_orders: number;
+}
+
+interface RecentPartner {
+  id: string;
+  business_name: string;
+  status: string;
+  created_at: string;
+}
+
+interface RecentAvailabilityRequest {
+  id: string;
+  requested_medicine_name: string;
+  status: string;
+  created_at: string;
+}
+
+interface AdminAnalyticsSummary {
+  new_users: number;
+  new_approved_partners: number;
+  medicine_searches: number;
+  medicine_requests: number;
+  paid_revenue_inr: number;
+}
+
+interface TopMedicineSearch {
+  medicine_id: string;
+  product_name: string;
+  strength: string;
+  search_count: number;
+}
+
+interface RegionMetric {
+  state_name: string;
+  district_name: string;
+  approved_partners: number;
+  medicine_requests: number;
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date(value));
 }
 
 export default async function AdminDashboardPage() {
@@ -34,6 +79,8 @@ export default async function AdminDashboardPage() {
     promotionsPermission,
     securityPermission,
     reportsPermission,
+    fulfillmentPermission,
+    usersPermission,
   ] = await Promise.all([
     supabase.rpc("get_admin_dashboard_summary"),
     supabase.rpc("has_platform_permission", {
@@ -72,6 +119,12 @@ export default async function AdminDashboardPage() {
     supabase.rpc("has_platform_permission", {
       p_permission_key: "reports.view",
     }),
+    supabase.rpc("has_platform_permission", {
+      p_permission_key: "requests.view",
+    }),
+    supabase.rpc("has_platform_permission", {
+      p_permission_key: "users.view",
+    }),
   ]);
   const { data, error } = summaryResult;
   const canManageMedicines = medicinePermission.data === true;
@@ -86,6 +139,8 @@ export default async function AdminDashboardPage() {
   const canManagePromotions = promotionsPermission.data === true;
   const canManageSecurity = securityPermission.data === true;
   const canViewReports = reportsPermission.data === true;
+  const canViewFulfillment = fulfillmentPermission.data === true;
+  const canViewUsers = usersPermission.data === true;
   const summary = (data?.[0] ?? null) as Summary | null;
   const metrics = summary
     ? ([
@@ -97,6 +152,45 @@ export default async function AdminDashboardPage() {
         ["Orders and inquiries", summary.total_orders],
       ] as const)
     : [];
+  const [
+    recentPartnersResult,
+    recentRequestsResult,
+    analyticsSummaryResult,
+    topSearchesResult,
+    regionsResult,
+  ] = await Promise.all([
+    canViewPartners
+      ? supabase
+          .from("businesses")
+          .select("id, business_name, status, created_at")
+          .order("created_at", { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: [], error: null }),
+    canViewFulfillment
+      ? supabase
+          .from("medicine_requests")
+          .select("id, requested_medicine_name, status, created_at")
+          .in("status", ["open", "partially_fulfilled"])
+          .order("created_at", { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: [], error: null }),
+    canViewReports
+      ? supabase.rpc("admin_get_analytics_summary", { p_days: 30 })
+      : Promise.resolve({ data: [], error: null }),
+    canViewReports
+      ? supabase.rpc("admin_list_top_medicine_searches", { p_days: 30 })
+      : Promise.resolve({ data: [], error: null }),
+    canViewReports
+      ? supabase.rpc("admin_list_analytics_regions", { p_days: 30 })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  const recentPartners = (recentPartnersResult.data ?? []) as RecentPartner[];
+  const recentRequests = (recentRequestsResult.data ??
+    []) as RecentAvailabilityRequest[];
+  const analytics = (analyticsSummaryResult.data?.[0] ??
+    null) as AdminAnalyticsSummary | null;
+  const topSearches = (topSearchesResult.data ?? []) as TopMedicineSearch[];
+  const regions = (regionsResult.data ?? []) as RegionMetric[];
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-5 sm:px-8 sm:py-8">
@@ -149,7 +243,274 @@ export default async function AdminDashboardPage() {
             ))}
           </section>
         )}
+        {(canViewPartners || canViewFulfillment) && (
+          <section className="mt-6 grid gap-4 lg:grid-cols-2">
+            {canViewPartners && (
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle>Recent partner registrations</CardTitle>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href="/admin/partners">Review partners</Link>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {recentPartnersResult.error ? (
+                    <p role="alert" className="text-sm text-rose-800">
+                      Partner registrations are temporarily unavailable.
+                    </p>
+                  ) : recentPartners.length === 0 ? (
+                    <EmptyState
+                      title="No partner registrations yet"
+                      description="New pharmacy, clinic, nursing-home, and distributor applications will appear here."
+                    />
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {recentPartners.map((partner) => (
+                        <div
+                          key={partner.id}
+                          className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                          <div>
+                            <p className="font-medium text-slate-900">
+                              {partner.business_name}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Submitted {formatDate(partner.created_at)}
+                            </p>
+                          </div>
+                          <StatusBadge status={partner.status} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            {canViewFulfillment && (
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle>Open availability requests</CardTitle>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href="/admin/fulfillment">View requests</Link>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {recentRequestsResult.error ? (
+                    <p role="alert" className="text-sm text-rose-800">
+                      Availability requests are temporarily unavailable.
+                    </p>
+                  ) : recentRequests.length === 0 ? (
+                    <EmptyState
+                      title="No open requests"
+                      description="Active customer medicine requests will appear here."
+                    />
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {recentRequests.map((request) => (
+                        <div
+                          key={request.id}
+                          className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                          <div>
+                            <p className="font-medium text-slate-900">
+                              {request.requested_medicine_name}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Requested {formatDate(request.created_at)}
+                            </p>
+                          </div>
+                          <StatusBadge status={request.status} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </section>
+        )}
+        {canViewReports && (
+          <section className="mt-6">
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950">
+                  Network pulse
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Verified activity and paid revenue from the last 30 days.
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/admin/analytics">Open analytics</Link>
+              </Button>
+            </div>
+            {analyticsSummaryResult.error ? (
+              <p
+                role="alert"
+                className="rounded-xl bg-rose-50 p-4 text-sm text-rose-900"
+              >
+                Network reporting is temporarily unavailable.
+              </p>
+            ) : analytics ? (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                {[
+                  ["New users", analytics.new_users],
+                  ["New approved partners", analytics.new_approved_partners],
+                  ["Medicine requests", analytics.medicine_requests],
+                  ["Unique search appearances", analytics.medicine_searches],
+                  [
+                    "Paid revenue",
+                    `₹${Number(analytics.paid_revenue_inr).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`,
+                  ],
+                ].map(([label, value]) => (
+                  <Card key={label}>
+                    <CardContent className="p-4">
+                      <p className="text-sm text-slate-600">{label}</p>
+                      <p className="mt-2 text-2xl font-semibold text-slate-950">
+                        {typeof value === "number"
+                          ? value.toLocaleString("en-IN")
+                          : value}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : null}
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Most searched medicines</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {topSearchesResult.error ? (
+                    <p role="alert" className="text-sm text-rose-800">
+                      Search trends are temporarily unavailable.
+                    </p>
+                  ) : topSearches.length === 0 ? (
+                    <EmptyState
+                      title="No medicine search activity yet"
+                      description="Popular medicines will appear here as customers use DawaSetu search."
+                    />
+                  ) : (
+                    <ol className="grid gap-3">
+                      {topSearches.slice(0, 5).map((medicine, index) => {
+                        const maxCount = Math.max(
+                          ...topSearches
+                            .slice(0, 5)
+                            .map((item) => item.search_count),
+                          1,
+                        );
+                        const width = Math.max(
+                          6,
+                          Math.round((medicine.search_count / maxCount) * 100),
+                        );
+                        return (
+                          <li key={medicine.medicine_id}>
+                            <div className="flex items-center justify-between gap-3 text-sm">
+                              <span className="min-w-0 truncate font-medium text-slate-900">
+                                {index + 1}. {medicine.product_name} ·{" "}
+                                {medicine.strength}
+                              </span>
+                              <span className="shrink-0 text-slate-600">
+                                {Number(medicine.search_count).toLocaleString(
+                                  "en-IN",
+                                )}
+                              </span>
+                            </div>
+                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className="h-full rounded-full bg-teal-700"
+                                style={{ width: `${width}%` }}
+                              />
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Regional network coverage</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {regionsResult.error ? (
+                    <p role="alert" className="text-sm text-rose-800">
+                      Regional activity is temporarily unavailable.
+                    </p>
+                  ) : regions.length === 0 ? (
+                    <EmptyState
+                      title="No mapped regional activity"
+                      description="Partner and request activity will appear when it is linked to configured districts and areas."
+                    />
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {regions.slice(0, 5).map((region) => (
+                        <div
+                          key={`${region.state_name}-${region.district_name}`}
+                          className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0"
+                        >
+                          <div>
+                            <p className="font-medium text-slate-900">
+                              {region.district_name}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {region.state_name}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3 text-right text-sm text-slate-600">
+                            <span>
+                              {Number(region.approved_partners).toLocaleString(
+                                "en-IN",
+                              )}{" "}
+                              partners
+                            </span>
+                            <span>
+                              {Number(region.medicine_requests).toLocaleString(
+                                "en-IN",
+                              )}{" "}
+                              requests
+                            </span>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${region.district_name}, ${region.state_name}, India`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-semibold text-teal-800 underline underline-offset-4"
+                            >
+                              Map
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+        )}
         <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {canViewUsers && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Users and patients</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm leading-6 text-slate-600">
+                  Find customer and partner accounts, review business links, and
+                  manage account access with audited password confirmation.
+                </p>
+                <Button asChild variant="outline" className="mt-4">
+                  <Link href="/admin/users">Open user directory</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
           {canManageMedicines && (
             <Card>
               <CardHeader>
@@ -339,6 +700,22 @@ export default async function AdminDashboardPage() {
                 </p>
                 <Button asChild variant="outline" className="mt-4">
                   <Link href="/admin/analytics">Open reports</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+          {canViewFulfillment && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Orders and inquiries</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm leading-6 text-slate-600">
+                  Review customer inquiries and partner-confirmation records
+                  without exposing customer phone numbers or exact locations.
+                </p>
+                <Button asChild variant="outline" className="mt-4">
+                  <Link href="/admin/fulfillment">Open operations</Link>
                 </Button>
               </CardContent>
             </Card>

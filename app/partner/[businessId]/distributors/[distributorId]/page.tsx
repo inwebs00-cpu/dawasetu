@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { Brand } from "@/components/brand/brand";
+import { DistributorInquiryForm } from "@/components/partner/distributor-inquiry-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
@@ -199,6 +200,11 @@ export default async function DistributorAvailabilityPage({
                               ? ` · Quantity ${item.quantity}`
                               : ""}
                           </p>
+                          <DistributorInquiryForm
+                            partnerBusinessId={businessId}
+                            distributorBusinessId={distributorId}
+                            medicineId={item.medicine_id}
+                          />
                         </CardContent>
                       </Card>
                     ))}

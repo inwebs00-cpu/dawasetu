@@ -76,6 +76,8 @@ service-role client for ordinary user requests.
 
 ## Implemented workflows
 
+- Role-specific sign-in entry points: `/login` for customers, `/partner/login` for pharmacy and clinic partners, `/distributor/login` for stockists, and `/admin/login` for DawaSetu staff. All use the same Supabase Auth session; server-side permission checks decide whether the selected workspace can open.
+
 - Customer signup, sign-in, email confirmation, and password recovery through Supabase Auth.
 - Public search for approved medicines and reported stock at approved public pharmacies, clinics,
   and nursing-home pharmacies. Public RPC responses exclude distributor stock and quantity.
@@ -94,6 +96,22 @@ service-role client for ordinary user requests.
   per-ticket reply rate limits, assignment notifications, and public/internal message isolation.
 - Customer profile editing, per-account saved medicines and recent search history, plus private
   in-app notifications with read-state controls and user-scoped Realtime delivery.
+- Customer-to-pharmacy in-app inquiries, hourly anti-spam limits, partner replies, and private
+  customer notifications. Distributor businesses cannot receive public inquiries.
+- Admin user directory with name/email/phone search, account and status filters, linked business
+  and platform-role summaries, paginated results, and audited status changes. Status changes
+  require current-password verification and a short-lived, single-use, server-issued database
+  authorization; the authorization table is inaccessible to browser roles.
+- Admin home dashboard with live network metrics, recent partner registrations, and active medicine
+  availability requests. The fulfillment workspace lists requests without fetching customer phone
+  or exact-coordinate fields.
+- Responsive partner dashboards with India-local daily inquiry/order counts, 30-day real usage
+  metrics, store-hours and visibility status, inventory alerts, map directions, nearby approved care
+  partners, and request shortcuts. Distributor dashboards show pending business-access requests,
+  private inventory, and partner stock inquiries without publishing distributor availability.
+- Private partner-to-distributor stock inquiries with approved-access and in-stock checks, per-pair
+  rate limits, response notifications, and audit history. This workflow connects verified businesses;
+  it does not place or settle medicine orders.
 - Platform team and custom-role administration with password re-authentication for sensitive
   changes, permission-subset enforcement, and audited role/status updates.
 - Optional administrator TOTP enrollment, sign-in challenge, audited MFA state, and database-level
@@ -145,14 +163,15 @@ verified because merchant credentials and a configured webhook are deployment-sp
 
 ## Deployment
 
-Import the GitHub repository into Vercel and configure environment variables in the project settings.
-Set `NEXT_PUBLIC_SITE_URL` to the production HTTPS origin and configure the same origin in Supabase
-Auth redirect URLs. Apply Supabase migrations before enabling database-backed features. Keep local
+The GitHub repository is connected to the DawaSetu Vercel project and the initial public site is
+deployed. Keep production environment variables in Vercel, set `NEXT_PUBLIC_SITE_URL` to the
+production HTTPS origin, and allow the same origin in Supabase Auth redirect URLs. Apply every new
+file in `supabase/migrations/` before deploying code that calls its database functions. Keep local
 `.env.local` files and all secret keys out of source control.
 
 ## Phased implementation
 
-The project is being built in reviewed phases. Each completed database slice is validated with
-PGlite migration and RLS tests plus TypeScript, lint, formatting, and production-build checks. A
-Supabase project and Vercel deployment still need to be configured before remote production
-behavior can be verified.
+The project is being built in reviewed phases. Completed database slices are validated with PGlite
+migration and RLS tests plus TypeScript, lint, formatting, and production-build checks. A successful
+local build does not confirm that a new migration has been applied to the hosted Supabase project;
+verify hosted database migrations before using newly added workflows in production.

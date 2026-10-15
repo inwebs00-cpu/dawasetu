@@ -78,6 +78,17 @@ interface AccountNotification {
   created_at: string;
 }
 
+interface CustomerInquiry {
+  id: string;
+  business_id: string;
+  medicine_id: string | null;
+  message: string;
+  status: string;
+  response_message: string | null;
+  created_at: string;
+  responded_at: string | null;
+}
+
 export default async function AccountPage({
   searchParams,
 }: {
@@ -92,6 +103,7 @@ export default async function AccountPage({
     savedResult,
     recentSearchResult,
     notificationResult,
+    inquiryResult,
   ] = await Promise.all([
     supabase.rpc("list_my_medicine_requests"),
     supabase.rpc("list_my_businesses"),
@@ -106,6 +118,14 @@ export default async function AccountPage({
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(10),
+    supabase
+      .from("inquiries")
+      .select(
+        "id, business_id, medicine_id, message, status, response_message, created_at, responded_at",
+      )
+      .eq("customer_user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
   const requests = (
     requestResult.error ? [] : (requestResult.data ?? [])
@@ -115,6 +135,24 @@ export default async function AccountPage({
   const recentSearches = (recentSearchResult.data ?? []) as RecentSearch[];
   const notifications = (notificationResult.data ??
     []) as AccountNotification[];
+  const inquiries = (inquiryResult.data ?? []) as CustomerInquiry[];
+  const inquiryBusinessIds = [
+    ...new Set(inquiries.map((item) => item.business_id)),
+  ];
+  const inquiryBusinessesResult = inquiryBusinessIds.length
+    ? await supabase
+        .from("businesses")
+        .select("id, business_name")
+        .in("id", inquiryBusinessIds)
+    : { data: [], error: null };
+  const inquiryBusinessNames = new Map(
+    (
+      (inquiryBusinessesResult.data ?? []) as {
+        id: string;
+        business_name: string;
+      }[]
+    ).map((business) => [business.id, business.business_name]),
+  );
   const unreadNotifications = notifications.some((item) => !item.read_at);
 
   return (
@@ -411,6 +449,69 @@ export default async function AccountPage({
               </div>
             )}
           </article>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-teal-800">
+                Direct messages
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-950">
+                Pharmacy inquiries
+              </h2>
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/pharmacies">Browse pharmacies</Link>
+            </Button>
+          </div>
+          {inquiryResult.error ? (
+            <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">
+              Pharmacy inquiries are temporarily unavailable.
+            </p>
+          ) : inquiries.length === 0 ? (
+            <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+              Messages you send from an approved pharmacy profile and its
+              replies will appear here.
+            </p>
+          ) : (
+            <div className="mt-3 divide-y divide-slate-100">
+              {inquiries.map((inquiry) => (
+                <article key={inquiry.id} className="py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-slate-950">
+                        {inquiryBusinessNames.get(inquiry.business_id) ??
+                          "DawaSetu pharmacy"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Sent{" "}
+                        {new Date(inquiry.created_at).toLocaleString("en-IN", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                          timeZone: "Asia/Kolkata",
+                        })}
+                      </p>
+                    </div>
+                    <StatusBadge status={inquiry.status} />
+                  </div>
+                  <p className="mt-3 text-sm leading-6 whitespace-pre-wrap text-slate-700">
+                    {inquiry.message}
+                  </p>
+                  {inquiry.response_message && (
+                    <div className="mt-3 rounded-xl bg-teal-50 p-4">
+                      <p className="text-xs font-semibold text-teal-900">
+                        Pharmacy reply
+                      </p>
+                      <p className="mt-1 text-sm leading-6 whitespace-pre-wrap text-teal-950">
+                        {inquiry.response_message}
+                      </p>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         {(adminResult.data === true || businesses.length > 0) && (
