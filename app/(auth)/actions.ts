@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
+  ADMIN_LOGIN_EMAIL,
+  resolveAdminLoginEmail,
+} from "@/lib/auth/admin-login-identifier";
+import {
   getLoginDestination,
   isLoginPortal,
   type LoginBusiness,
@@ -77,18 +81,24 @@ export async function signInAction(
   _previousState: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
-  const email = normalizedEmail(textField(formData, "email"));
-  const password = textField(formData, "password");
   const portalValue = textField(formData, "portal") || "customer";
-  if (
-    !email ||
-    password.length < 1 ||
-    password.length > 128 ||
-    !isLoginPortal(portalValue)
-  ) {
-    return { error: "Enter a valid email and password." };
+  if (!isLoginPortal(portalValue)) {
+    return { error: "Choose a valid sign-in page." };
   }
   const portal: LoginPortal = portalValue;
+  const email =
+    portal === "admin"
+      ? resolveAdminLoginEmail(textField(formData, "identifier"))
+      : normalizedEmail(textField(formData, "email"));
+  const password = textField(formData, "password");
+  if (!email || password.length < 1 || password.length > 128) {
+    return {
+      error:
+        portal === "admin"
+          ? "Enter a valid admin ID or email and password."
+          : "Enter a valid email and password.",
+    };
+  }
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -155,6 +165,88 @@ export async function signInAction(
       ? `/change-password?next=${encodeURIComponent(destination)}`
       : destination;
     return await redirectAfterAuthentication(supabase, nextPath);
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    return clientError();
+  }
+}
+
+export async function requestAdminOtpAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const email = normalizedEmail(textField(formData, "email"));
+  if (email !== ADMIN_LOGIN_EMAIL) {
+    return { error: "Use the configured DawaSetu admin email address." };
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: `${siteOrigin()}/auth/callback?next=%2Fadmin`,
+      },
+    });
+  } catch {
+    // Keep the response the same whether the account exists or mail delivery
+    // is unavailable. Supabase also applies its own OTP rate limits.
+  }
+  return {
+    otpRequested: true,
+    message:
+      "If the admin account is active, a one-time sign-in email will arrive. Enter its code below or open its sign-in link.",
+  };
+}
+
+export async function verifyAdminOtpAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const email = normalizedEmail(textField(formData, "email"));
+  const token = textField(formData, "token").trim();
+  if (email !== ADMIN_LOGIN_EMAIL || !/^\d{6,10}$/.test(token)) {
+    return {
+      error: "Enter the email code sent to the DawaSetu admin address.",
+    };
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email",
+    });
+    if (error || !data.user) {
+      return { error: "That code is invalid or expired. Request a new code." };
+    }
+
+    const { data: canAccessAdmin, error: permissionError } = await supabase.rpc(
+      "can_access_admin_portal",
+    );
+    if (permissionError || canAccessAdmin !== true) {
+      await supabase.auth.signOut();
+      return {
+        error: "This email is not assigned to the DawaSetu admin workspace.",
+      };
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("password_change_required")
+      .eq("id", data.user.id)
+      .maybeSingle();
+    if (profileError || !profile) {
+      await supabase.auth.signOut();
+      return { error: "Account security could not be verified. Please retry." };
+    }
+
+    const destination = profile.password_change_required
+      ? "/change-password?next=%2Fadmin"
+      : "/admin";
+    return await redirectAfterAuthentication(supabase, destination);
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
     return clientError();

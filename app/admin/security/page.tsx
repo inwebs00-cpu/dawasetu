@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { Brand } from "@/components/brand/brand";
+import { ChangeAdminPasswordCard } from "@/components/admin/change-admin-password-card";
 import { SecurityMfaCard } from "@/components/admin/security-mfa-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +46,7 @@ export default async function AdminSecurityPage() {
           admin operations. MFA state is audited and enforced by the database.
         </p>
         <SecurityMfaCard verifiedFactors={verifiedFactors} />
+        <ChangeAdminPasswordCard />
         {error && (
           <Card className="mt-5 border-rose-200 bg-rose-50">
             <CardHeader>
