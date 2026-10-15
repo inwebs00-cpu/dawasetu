@@ -55,10 +55,12 @@ export function SubscriptionCheckout({
   businessId,
   plans,
   enabled,
+  disabledMessage,
 }: {
   businessId: string;
   plans: PlanOption[];
   enabled: boolean;
+  disabledMessage?: string;
 }) {
   const router = useRouter();
   const [scriptReady, setScriptReady] = useState(false);
@@ -195,8 +197,8 @@ export function SubscriptionCheckout({
       )}
       {!enabled && (
         <p className="mb-4 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-          Online payments are not configured for this deployment. Add Razorpay
-          test or live keys and the webhook secret to enable checkout.
+          {disabledMessage ??
+            "Online payments are not configured for this deployment. Add Razorpay test or live keys and the webhook secret to enable checkout."}
         </p>
       )}
       {message && (

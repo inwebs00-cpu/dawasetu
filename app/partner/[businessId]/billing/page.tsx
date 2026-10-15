@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { requireBusinessPermission } from "@/lib/auth/authorization";
 import { isRazorpayCheckoutConfigured } from "@/lib/payments/gateway-config";
+import { hasPublicMerchantDetails } from "@/lib/site/public-business-details";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Subscription and payments" };
@@ -102,6 +103,13 @@ export default async function PartnerBillingPage({
         new Date(item.current_period_end).getTime() > Date.now()),
   );
   const checkoutEnabled = await isRazorpayCheckoutConfigured();
+  const merchantDetailsReady = hasPublicMerchantDetails();
+  const checkoutDisabledMessage =
+    business.business_status !== "approved"
+      ? "Partner approval is required before a subscription payment can be started."
+      : !merchantDetailsReady
+        ? "Online checkout is paused until the registered business name, operating address, support and grievance contact details are configured on the public Contact page."
+        : "Online payments are not configured for this deployment. Add Razorpay test or live keys and the webhook secret to enable checkout.";
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-5 sm:px-8 sm:py-8">
@@ -171,8 +179,28 @@ export default async function PartnerBillingPage({
           <SubscriptionCheckout
             businessId={businessId}
             plans={plans}
-            enabled={checkoutEnabled && business.business_status === "approved"}
+            enabled={
+              checkoutEnabled &&
+              merchantDetailsReady &&
+              business.business_status === "approved"
+            }
+            disabledMessage={checkoutDisabledMessage}
           />
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            By continuing to checkout, you agree to the{" "}
+            <Link className="underline" href="/terms">
+              Terms &amp; Conditions
+            </Link>
+            ,{" "}
+            <Link className="underline" href="/privacy">
+              Privacy Policy
+            </Link>{" "}
+            and{" "}
+            <Link className="underline" href="/refund-cancellation">
+              Refund &amp; Cancellation Policy
+            </Link>
+            .
+          </p>
         </section>
         <section className="mt-8 grid gap-4 lg:grid-cols-2">
           <Card>

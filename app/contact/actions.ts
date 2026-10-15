@@ -4,12 +4,14 @@ import { randomUUID } from "node:crypto";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { validatePrivateUpload } from "@/lib/files/validate-private-upload";
+import { notifySupportTeamOfNewTicket } from "@/lib/notifications/support-email";
 import type { AuthActionState } from "@/types/auth";
 
 const ticketCategories = new Set([
   "account",
   "partner onboarding",
   "medicine availability",
+  "billing or payments",
   "privacy or safety",
   "other",
 ]);
@@ -106,8 +108,17 @@ export async function createSupportTicketAction(
       }
       return { error: "Your ticket could not be created. Please try again." };
     }
+    const delivery = await notifySupportTeamOfNewTicket({
+      ticketNumber: data.ticket_number,
+      subject,
+      category,
+    });
     return {
-      message: `Support ticket #${data.ticket_number} has been submitted.`,
+      message: delivery.sent
+        ? `Support ticket #${data.ticket_number} has been submitted. The support team has been notified by email.`
+        : delivery.configured
+          ? `Support ticket #${data.ticket_number} has been saved, but the email alert could not be sent. You can still track replies in your account.`
+          : `Support ticket #${data.ticket_number} has been saved. Email alerts are not configured yet; you can track replies in your account.`,
     };
   } catch {
     return {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAuthenticatedUser } from "@/lib/auth/authorization";
+import { notifySupportTeamOfCustomerReply } from "@/lib/notifications/support-email";
 import type { AuthActionState } from "@/types/auth";
 
 export async function replyToSupportTicketAction(
@@ -21,10 +22,13 @@ export async function replyToSupportTicketAction(
   }
   try {
     const { supabase } = await requireAuthenticatedUser();
-    const { error } = await supabase.rpc("add_my_support_ticket_message", {
-      p_ticket_id: ticketId,
-      p_message: message,
-    });
+    const { data: ticketNumber, error } = await supabase.rpc(
+      "add_my_support_ticket_message",
+      {
+        p_ticket_id: ticketId,
+        p_message: message,
+      },
+    );
     if (error) {
       if (error.message.toLowerCase().includes("closed")) {
         return {
@@ -38,8 +42,23 @@ export async function replyToSupportTicketAction(
       }
       return { error: "Your reply could not be sent. Refresh and try again." };
     }
+    const { data: ticket } = await supabase
+      .from("support_tickets")
+      .select("subject")
+      .eq("id", ticketId)
+      .maybeSingle();
+    const notification = ticket
+      ? await notifySupportTeamOfCustomerReply({
+          ticketNumber: Number(ticketNumber),
+          subject: ticket.subject,
+        })
+      : { sent: false, configured: false };
     revalidatePath("/account/support");
-    return { message: "Your reply was added to the ticket." };
+    return {
+      message: notification.sent
+        ? "Your reply was added and the support team was notified by email."
+        : "Your reply was added. The support team can see it in the support inbox.",
+    };
   } catch {
     return { error: "Support is temporarily unavailable. Try again shortly." };
   }

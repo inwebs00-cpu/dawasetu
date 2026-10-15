@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { createRazorpayOrder } from "@/lib/payments/razorpay";
 import { isSameOriginRequest } from "@/lib/payments/request-origin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { hasPublicMerchantDetails } from "@/lib/site/public-business-details";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +12,15 @@ export const dynamic = "force-dynamic";
 const uuidPattern = /^[0-9a-f-]{36}$/i;
 
 export async function POST(request: Request) {
+  if (!hasPublicMerchantDetails()) {
+    return NextResponse.json(
+      {
+        error:
+          "Checkout is unavailable until merchant contact details are configured.",
+      },
+      { status: 503 },
+    );
+  }
   if (!isSameOriginRequest(request)) {
     return NextResponse.json(
       { error: "Invalid request origin." },

@@ -36,8 +36,9 @@ service-role client for ordinary user requests.
    editor. The migrations install RLS, permission checks, search, customer requests, partner
    onboarding, medicine reviews, geographic areas, distributor B2B access, customer account
    features, subscriptions and payments, public content, and auditable administrative changes.
-3. Create the first platform administrator from the trusted SQL editor. Replace the email with an
-   already verified Supabase Auth account:
+3. Open the admin sign-in page at `/admin/login`. There is no shared default admin username or
+   password. Create and verify the intended administrator's Supabase Auth account first. For the
+   first platform administrator, run this in the trusted SQL editor with that verified email:
 
    ```sql
    insert into public.user_roles (user_id, role_id)
@@ -48,10 +49,14 @@ service-role client for ordinary user requests.
    on conflict do nothing;
 
    update public.users
-   set account_type = 'super_admin'
+   set account_type = 'super_admin', password_change_required = true
    where id = (select id from auth.users where lower(email) = lower('admin@example.in'));
    ```
 
+   Set a one-time temporary password in Supabase Auth or use its password-reset email. On the first
+   successful sign-in, DawaSetu requires the administrator to choose a new password before any
+   admin permissions are granted. The temporary password is never stored in the repository or
+   returned by the application. Admin team role assignments set the same requirement automatically.
    Do not expose a self-service admin role assignment in the application.
 
 4. Add active areas under **Admin → Network locations**. Customer requests are routed only to
@@ -69,8 +74,15 @@ service-role client for ordinary user requests.
    `RAZORPAY_WEBHOOK_SECRET`. Test order
    creation, checkout, signature verification, capture, and webhook delivery in Razorpay test mode
    before enabling live credentials. Checkout stays disabled until all three Razorpay values are
-   configured.
-8. For admin-managed Razorpay settings, add `PAYMENT_CONFIG_ENCRYPTION_KEY` as a stable,
+   configured and the public merchant details below are complete.
+8. Before accepting live payments, set `NEXT_PUBLIC_LEGAL_ENTITY_NAME`,
+   `NEXT_PUBLIC_BUSINESS_ADDRESS`, `NEXT_PUBLIC_SUPPORT_EMAIL`,
+   `NEXT_PUBLIC_SUPPORT_PHONE`, `NEXT_PUBLIC_SUPPORT_HOURS`, and the three
+   `NEXT_PUBLIC_GRIEVANCE_OFFICER_*` values in Vercel to accurate, monitored business details.
+   These values are shown on the public Contact and legal pages. Online checkout stays disabled
+   until all required legal name, address, support email/phone, and grievance officer details are
+   present. Do not use sample values from `.env.example` in production.
+9. For admin-managed Razorpay settings, add `PAYMENT_CONFIG_ENCRYPTION_KEY` as a stable,
    server-only Vercel environment variable and locally. Generate it with `openssl rand -base64 32`.
    Then open **Admin → Payment & Plans → Payment gateway**, enter the Razorpay Key ID, Key Secret,
    and Webhook Secret, confirm the current admin password, and save. The secret values are encrypted
@@ -80,9 +92,15 @@ service-role client for ordinary user requests.
    and refunds. Razorpay is the integrated
    provider; other providers need their own checkout and webhook adapter before they can process
    payments.
-9. The Click2Book homepage link is included in `supabase/seed/redirect-websites.sql`. It is safe to
-   re-run; change its URL, label, or active status in **Admin → Redirect websites** after the
-   initial seed.
+10. The Click2Book homepage link is included in `supabase/seed/redirect-websites.sql`. It is safe to
+    re-run; change its URL, label, or active status in **Admin → Redirect websites** after the
+    initial seed.
+11. Support ticket alerts use Resend. In Vercel, set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` to an
+    address on a verified Resend domain. Set `SUPPORT_NOTIFICATION_EMAIL` to
+    `dawasetuofficial@gmail.com` (or another monitored inbox). New support tickets and customer
+    replies email this inbox; public replies and status changes email the requester. Internal notes
+    are never included in customer emails. Tickets remain available in the support dashboard if
+    email delivery is not configured.
 
 ## Implemented workflows
 
@@ -101,6 +119,8 @@ service-role client for ordinary user requests.
   changes.
 - Support ticket triage with permission-checked status/priority updates, eligible-team assignment, public
   replies, private internal notes, and requester-safe message visibility.
+- Server-side email alerts for new support tickets and customer replies, plus requester email updates
+  for public staff replies or ticket status changes. Internal notes stay private.
 - Customer support inbox with private ticket history and replies, PDF/JPEG/PNG attachments in a
   private, row-level-secured storage bucket, short-lived download links, closed-ticket enforcement,
   per-ticket reply rate limits, assignment notifications, and public/internal message isolation.

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { NotificationRealtime } from "@/components/account/notification-realtime";
+import { AccountProfileForm } from "@/components/account/account-profile-form";
 import { Brand } from "@/components/brand/brand";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -9,15 +10,12 @@ import { signOutAction } from "@/app/(auth)/actions";
 import {
   markNotificationsReadAction,
   removeSavedMedicineAction,
-  updateAccountProfileAction,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{
   request?: string;
-  profile?: string;
-  profile_error?: string;
   saved?: string;
   saved_error?: string;
   notifications?: string;
@@ -204,23 +202,6 @@ export default async function AccountPage({
             your area.
           </p>
         )}
-        {params.profile === "updated" && (
-          <p
-            role="status"
-            className="mt-5 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-950"
-          >
-            Your profile was updated.
-          </p>
-        )}
-        {params.profile_error && (
-          <p
-            role="alert"
-            className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"
-          >
-            Profile changes could not be saved. Use an international phone
-            number such as +919876543210 and check the other fields.
-          </p>
-        )}
         {params.saved === "removed" && (
           <p
             role="status"
@@ -260,49 +241,11 @@ export default async function AccountPage({
           <p className="mt-1 text-sm text-slate-600">
             Signed in as {user.email ?? "verified account"}.
           </p>
-          <form
-            action={updateAccountProfileAction}
-            className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-          >
-            <label className="grid gap-1 text-xs font-medium text-slate-700">
-              Full name
-              <input
-                name="full_name"
-                required
-                minLength={1}
-                maxLength={160}
-                defaultValue={profile.full_name}
-                className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900"
-              />
-            </label>
-            <label className="grid gap-1 text-xs font-medium text-slate-700">
-              Mobile number
-              <input
-                name="phone_e164"
-                type="tel"
-                inputMode="tel"
-                pattern="\\+[1-9][0-9]{7,14}"
-                maxLength={16}
-                defaultValue={profile.phone_e164 ?? ""}
-                placeholder="+919876543210"
-                className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900"
-              />
-            </label>
-            <label className="grid gap-1 text-xs font-medium text-slate-700">
-              Preferred language
-              <input
-                name="preferred_language"
-                required
-                minLength={2}
-                maxLength={12}
-                defaultValue={profile.preferred_language}
-                className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900"
-              />
-            </label>
-            <div className="flex items-end">
-              <Button type="submit">Save profile</Button>
-            </div>
-          </form>
+          <AccountProfileForm
+            fullName={profile.full_name}
+            phone={profile.phone_e164 ?? ""}
+            preferredLanguage={profile.preferred_language}
+          />
         </section>
 
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">

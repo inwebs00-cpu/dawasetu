@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import {
   Activity,
   ArrowRight,
@@ -26,6 +27,32 @@ import { listPublicBusinesses } from "@/services/business-directory";
 import { listPublicRedirectWebsites } from "@/services/redirect-websites";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Find Medicines Nearby | DawaSetu India",
+  description:
+    "Search medicines by brand, composition or strength and check partner-reported availability at approved nearby pharmacies in India.",
+  keywords: [
+    "find medicines nearby",
+    "medicine availability India",
+    "nearby pharmacy medicine stock",
+    "search medicine by composition",
+    "DawaSetu",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "DawaSetu — Find Medicines. Find Nearby.",
+    description:
+      "Check partner-reported medicine availability at approved nearby pharmacies across India.",
+    url: "/",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DawaSetu — Find Medicines. Find Nearby.",
+    description:
+      "Search medicines and check partner-reported availability at nearby pharmacies.",
+  },
+};
 
 const benefits: {
   icon: LucideIcon;
@@ -214,7 +241,7 @@ export default async function HomePage() {
           </nav>
           <div className="hidden items-center gap-2 lg:flex">
             <Button asChild variant="secondary" size="sm">
-              <Link href="/login">Login</Link>
+              <Link href="/account">Account</Link>
             </Button>
             <Button
               asChild
@@ -226,10 +253,10 @@ export default async function HomePage() {
           </div>
           <div className="flex items-center gap-2 lg:hidden">
             <Link
-              href="/login"
+              href="/account"
               className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
             >
-              Login
+              Account
             </Link>
             <Button
               asChild
@@ -574,8 +601,8 @@ export default async function HomePage() {
             <Link href="/contact" className="hover:text-teal-800">
               Contact
             </Link>
-            <Link href="/login" className="hover:text-teal-800">
-              Account
+            <Link href="/account" className="hover:text-teal-800">
+              My account
             </Link>
           </nav>
         </footer>
@@ -588,7 +615,7 @@ export default async function HomePage() {
         <MobileNavLink href="/" icon={Store} label="Home" current />
         <MobileNavLink href="/medicines" icon={Pill} label="Medicines" />
         <MobileNavLink href="/pharmacies" icon={Store} label="Pharmacies" />
-        <MobileNavLink href="/login" icon={ShieldCheck} label="Account" />
+        <MobileNavLink href="/account" icon={ShieldCheck} label="Account" />
       </nav>
     </main>
   );

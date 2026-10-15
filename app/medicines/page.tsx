@@ -15,7 +15,21 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Find a medicine nearby",
   description:
-    "Search reported medicine availability at approved pharmacies and clinic pharmacies near you.",
+    "Search medicine names, brands, compositions and strengths to find partner-reported availability at approved nearby pharmacies across India.",
+  keywords: [
+    "find medicine nearby",
+    "medicine availability near me",
+    "search medicine by brand or composition",
+    "nearby pharmacy stock availability",
+  ],
+  alternates: { canonical: "/medicines" },
+  openGraph: {
+    title: "Find a Medicine Nearby | DawaSetu",
+    description:
+      "Search medicine brands, compositions and strengths and check partner-reported nearby pharmacy availability.",
+    url: "/medicines",
+    type: "website",
+  },
 };
 
 type SearchParams = Promise<{
@@ -63,7 +77,7 @@ export default async function MedicinesPage({
               <Link href="/">Home</Link>
             </Button>
             <Button asChild variant="secondary" size="sm">
-              <Link href="/login">Sign in</Link>
+              <Link href="/account">Account</Link>
             </Button>
           </nav>
         </header>

@@ -48,6 +48,7 @@ const migrationPaths = [
   "supabase/migrations/20261015020000_admin_user_directory.sql",
   "supabase/migrations/20261015030000_distributor_inquiries.sql",
   "supabase/migrations/20261016010000_admin_payment_gateway_settings.sql",
+  "supabase/migrations/20261016020000_first_login_password_change.sql",
 ].map((path) => resolve(process.cwd(), path));
 
 describe("DawaSetu core schema migration", () => {
@@ -132,6 +133,14 @@ describe("DawaSetu core schema migration", () => {
         (table) => table.name === "payment_gateway_configurations",
       ),
     ).toBe(true);
+    const passwordChangeColumn = await database.query<{ exists: boolean }>(`
+      select exists (
+        select 1 from information_schema.columns
+        where table_schema = 'public' and table_name = 'users'
+          and column_name = 'password_change_required'
+      ) as exists;
+    `);
+    expect(passwordChangeColumn.rows[0].exists).toBe(true);
   });
 
   it("keeps payment gateway secrets inaccessible to browser roles", async () => {
@@ -227,9 +236,11 @@ describe("DawaSetu core schema migration", () => {
     const profile = await database.query<{
       account_type: string;
       full_name: string;
-    }>("select account_type, full_name from public.users where id = $1", [
-      userId,
-    ]);
+      password_change_required: boolean;
+    }>(
+      "select account_type, full_name, password_change_required from public.users where id = $1",
+      [userId],
+    );
     const role = await database.query<{ slug: string }>(
       `select r.slug from public.user_roles ur join public.roles r on r.id = ur.role_id where ur.user_id = $1`,
       [userId],
@@ -238,6 +249,7 @@ describe("DawaSetu core schema migration", () => {
     expect(profile.rows[0]).toEqual({
       account_type: "customer",
       full_name: "New Customer",
+      password_change_required: false,
     });
     expect(role.rows.map((row) => row.slug)).toEqual(["customer"]);
 
