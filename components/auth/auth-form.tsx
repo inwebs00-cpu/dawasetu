@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
   requestPasswordResetAction,
+  requestAdminOtpAction,
   signInAction,
   signUpAction,
   updatePasswordAction,
+  verifyAdminOtpAction,
 } from "@/app/(auth)/actions";
+import { ADMIN_LOGIN_EMAIL } from "@/lib/auth/admin-login-identifier";
 import type { AuthActionState } from "@/types/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -140,9 +143,17 @@ const portalCopy: Record<
   admin: {
     title: "Admin sign in",
     intro:
-      "Sign in with your DawaSetu staff account. Admin permissions and MFA are checked securely before the workspace opens.",
+      "Sign in with your admin ID or email. Admin permissions and MFA are checked before the workspace opens.",
     footer: (
-      <span>Admin access is assigned by the DawaSetu platform team.</span>
+      <span>
+        Admin access is assigned by the DawaSetu platform team.{" "}
+        <Link
+          className="font-semibold text-teal-800 hover:underline"
+          href="/admin/login?method=otp"
+        >
+          Use an email code instead
+        </Link>
+      </span>
     ),
   },
   partner: {
@@ -200,14 +211,24 @@ export function LoginForm({
       {portal === "customer" && nextPath && (
         <input type="hidden" name="next" value={nextPath} />
       )}
-      <Field
-        id="login-email"
-        label="Email"
-        name="email"
-        type="email"
-        autoComplete="email"
-        maxLength={254}
-      />
+      {portal === "admin" ? (
+        <Field
+          id="login-identifier"
+          label="Admin ID or email"
+          name="identifier"
+          autoComplete="username"
+          maxLength={254}
+        />
+      ) : (
+        <Field
+          id="login-email"
+          label="Email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          maxLength={254}
+        />
+      )}
       <Field
         id="login-password"
         label="Password"
@@ -245,6 +266,102 @@ export function LoginForm({
           ))}
       </nav>
     </FormFrame>
+  );
+}
+
+export function AdminOtpLoginForm() {
+  const [requestState, requestAction, requestPending] = useActionState(
+    requestAdminOtpAction,
+    {},
+  );
+  const [verifyState, verifyAction, verifyPending] = useActionState(
+    verifyAdminOtpAction,
+    {},
+  );
+  const [email, setEmail] = useState(ADMIN_LOGIN_EMAIL);
+
+  return (
+    <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_28px_70px_-42px_rgba(15,76,78,0.35)] sm:p-8">
+      <p className="text-sm font-semibold text-teal-800">
+        Administrator access
+      </p>
+      <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+        Sign in with an email code
+      </h1>
+      <p className="mt-2 text-sm leading-6 text-slate-600">
+        Request a one-time sign-in email for the DawaSetu admin account. Your
+        email template may provide a code or a secure sign-in link. Admin role
+        and MFA are checked before the dashboard opens.
+      </p>
+
+      <form action={requestAction} className="mt-6 grid gap-4">
+        <label
+          htmlFor="admin-otp-email"
+          className="grid gap-2 text-sm font-medium text-slate-800"
+        >
+          Admin email
+          <Input
+            id="admin-otp-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            maxLength={254}
+            required
+          />
+        </label>
+        <Feedback state={requestState} />
+        <Button type="submit" className="w-full" disabled={requestPending}>
+          {requestPending ? "Sending email…" : "Send sign-in email"}
+        </Button>
+      </form>
+
+      {requestState.otpRequested && (
+        <form action={verifyAction} className="mt-5 grid gap-4">
+          <input type="hidden" name="email" value={email} />
+          <label
+            htmlFor="admin-otp-code"
+            className="grid gap-2 text-sm font-medium text-slate-800"
+          >
+            Email code (if provided)
+            <Input
+              id="admin-otp-code"
+              name="token"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6,10}"
+              minLength={6}
+              maxLength={10}
+              required
+            />
+          </label>
+          <Feedback state={verifyState} />
+          <Button type="submit" className="w-full" disabled={verifyPending}>
+            {verifyPending ? "Verifying…" : "Verify code and sign in"}
+          </Button>
+          <button
+            type="submit"
+            formAction={requestAction}
+            className="text-sm font-semibold text-teal-800 hover:underline"
+            disabled={requestPending}
+          >
+            Send another sign-in email
+          </button>
+        </form>
+      )}
+
+      <div className="mt-6 border-t border-slate-100 pt-5 text-sm text-slate-600">
+        Prefer a password?{" "}
+        <Link
+          href="/admin/login?method=password"
+          className="font-semibold text-teal-800 hover:underline"
+        >
+          Use admin ID or email
+        </Link>
+      </div>
+    </section>
   );
 }
 
