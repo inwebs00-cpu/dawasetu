@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
+import { PwaInstallPrompt } from "@/components/pwa/install-prompt";
 import { ToastProvider } from "@/components/ui/toast";
 
 import "./globals.css";
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
   },
   description: "Find medicines. Find nearby.",
   applicationName: "DawaSetu",
+  icons: { apple: "/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
@@ -26,7 +28,10 @@ export default function RootLayout({
   return (
     <html lang="en-IN">
       <body>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          {children}
+          <PwaInstallPrompt />
+        </ToastProvider>
       </body>
     </html>
   );
