@@ -47,6 +47,7 @@ const migrationPaths = [
   "supabase/migrations/20261015010000_customer_partner_inquiries.sql",
   "supabase/migrations/20261015020000_admin_user_directory.sql",
   "supabase/migrations/20261015030000_distributor_inquiries.sql",
+  "supabase/migrations/20261016010000_admin_payment_gateway_settings.sql",
 ].map((path) => resolve(process.cwd(), path));
 
 describe("DawaSetu core schema migration", () => {
@@ -123,6 +124,32 @@ describe("DawaSetu core schema migration", () => {
     expect(tables.rows.every((table) => table.rls_enabled)).toBe(true);
     expect(businessTypes.rows[0].count).toBe(4);
     expect(roles.rows[0].count).toBeGreaterThan(0);
+    expect(
+      tables.rows.some((table) => table.name === "payment_gateway_state"),
+    ).toBe(true);
+    expect(
+      tables.rows.some(
+        (table) => table.name === "payment_gateway_configurations",
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps payment gateway secrets inaccessible to browser roles", async () => {
+    const privileges = await database.query<{
+      anon_select: boolean;
+      authenticated_select: boolean;
+      service_role_select: boolean;
+    }>(`
+      select
+        has_table_privilege('anon', 'public.payment_gateway_configurations', 'select') as anon_select,
+        has_table_privilege('authenticated', 'public.payment_gateway_configurations', 'select') as authenticated_select,
+        has_table_privilege('service_role', 'public.payment_gateway_configurations', 'select') as service_role_select;
+    `);
+    expect(privileges.rows[0]).toEqual({
+      anon_select: false,
+      authenticated_select: false,
+      service_role_select: true,
+    });
   });
 
   it("preserves inventory rows and rejects zero quantity as available", async () => {

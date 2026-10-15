@@ -82,7 +82,7 @@ export default async function AdminRefundsPage({
   ]);
   const payments = (refundableResult.data ?? []) as RefundablePayment[];
   const requests = (requestsResult.data ?? []) as RefundRequest[];
-  const refundsEnabled = isRazorpayRefundConfigured();
+  const refundsEnabled = await isRazorpayRefundConfigured();
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-5 sm:px-8 sm:py-8">

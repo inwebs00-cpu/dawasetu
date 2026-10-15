@@ -178,7 +178,6 @@ const portalLinks: { portal: LoginPortal; label: string; href: string }[] = [
   { portal: "customer", label: "Customer", href: "/login" },
   { portal: "partner", label: "Pharmacy / clinic", href: "/partner/login" },
   { portal: "distributor", label: "Distributor", href: "/distributor/login" },
-  { portal: "admin", label: "Admin", href: "/admin/login" },
 ];
 
 export function LoginForm({ portal = "customer" }: { portal?: LoginPortal }) {

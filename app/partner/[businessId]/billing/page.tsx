@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { requireBusinessPermission } from "@/lib/auth/authorization";
+import { isRazorpayCheckoutConfigured } from "@/lib/payments/gateway-config";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Subscription and payments" };
@@ -100,11 +101,7 @@ export default async function PartnerBillingPage({
       (!item.current_period_end ||
         new Date(item.current_period_end).getTime() > Date.now()),
   );
-  const checkoutEnabled = Boolean(
-    process.env.RAZORPAY_KEY_ID &&
-    process.env.RAZORPAY_KEY_SECRET &&
-    process.env.RAZORPAY_WEBHOOK_SECRET,
-  );
+  const checkoutEnabled = await isRazorpayCheckoutConfigured();
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-5 sm:px-8 sm:py-8">

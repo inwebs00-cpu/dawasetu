@@ -46,7 +46,7 @@ export async function requestPaymentRefundAction(formData: FormData) {
   if (!user.email || !(await verifyCurrentPassword(user.email, password))) {
     redirect("/admin/refunds?error=reauth");
   }
-  if (!isRazorpayRefundConfigured()) {
+  if (!(await isRazorpayRefundConfigured())) {
     redirect("/admin/refunds?error=unconfigured");
   }
 

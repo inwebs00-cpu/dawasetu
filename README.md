@@ -70,7 +70,17 @@ service-role client for ordinary user requests.
    creation, checkout, signature verification, capture, and webhook delivery in Razorpay test mode
    before enabling live credentials. Checkout stays disabled until all three Razorpay values are
    configured.
-8. The Click2Book homepage link is included in `supabase/seed/redirect-websites.sql`. It is safe to
+8. For admin-managed Razorpay settings, add `PAYMENT_CONFIG_ENCRYPTION_KEY` as a stable,
+   server-only Vercel environment variable and locally. Generate it with `openssl rand -base64 32`.
+   Then open **Admin → Payment & Plans → Payment gateway**, enter the Razorpay Key ID, Key Secret,
+   and Webhook Secret, confirm the current admin password, and save. The secret values are encrypted
+   with AES-256-GCM before they reach the database; they are never displayed after saving. Changing
+   the encryption key later makes previously saved credentials unreadable. Removing the gateway
+   stops new checkouts while keeping its credentials encrypted for existing payment verification
+   and refunds. Razorpay is the integrated
+   provider; other providers need their own checkout and webhook adapter before they can process
+   payments.
+9. The Click2Book homepage link is included in `supabase/seed/redirect-websites.sql`. It is safe to
    re-run; change its URL, label, or active status in **Admin → Redirect websites** after the
    initial seed.
 

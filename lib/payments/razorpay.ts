@@ -5,6 +5,8 @@ import {
   matchesWebhookSignature,
   paymentWebhookEventId,
 } from "@/lib/payments/signatures";
+import { getRazorpayConfiguration } from "@/lib/payments/gateway-config";
+export { isRazorpayRefundConfigured } from "@/lib/payments/gateway-config";
 
 export interface RazorpayOrder {
   id: string;
@@ -30,19 +32,16 @@ export interface RazorpayRefund {
   status?: string;
 }
 
-function credentials() {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-  if (!keyId || !keySecret) throw new Error("Razorpay is not configured.");
-  return { keyId, keySecret };
-}
-
-export function isRazorpayRefundConfigured() {
-  return Boolean(
-    process.env.RAZORPAY_KEY_ID &&
-    process.env.RAZORPAY_KEY_SECRET &&
-    process.env.RAZORPAY_WEBHOOK_SECRET,
-  );
+async function credentials(requireEnabled = false) {
+  const config = await getRazorpayConfiguration();
+  if (
+    !config?.keyId ||
+    !config.keySecret ||
+    (requireEnabled && (!config.enabled || !config.webhookSecret))
+  ) {
+    throw new Error("Razorpay is not configured.");
+  }
+  return { keyId: config.keyId, keySecret: config.keySecret };
 }
 
 function authorizationHeader(keyId: string, keySecret: string) {
@@ -55,7 +54,7 @@ export async function createRazorpayOrder(input: {
   businessId: string;
   planId: string;
 }) {
-  const { keyId, keySecret } = credentials();
+  const { keyId, keySecret } = await credentials(true);
   const response = await fetch("https://api.razorpay.com/v1/orders", {
     method: "POST",
     headers: {
@@ -88,7 +87,7 @@ export async function createRazorpayOrder(input: {
 }
 
 export async function fetchRazorpayPayment(paymentId: string) {
-  const { keyId, keySecret } = credentials();
+  const { keyId, keySecret } = await credentials();
   const response = await fetch(
     `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}`,
     {
@@ -120,7 +119,7 @@ export async function createRazorpayRefund(input: {
   ) {
     throw new Error("Invalid refund request.");
   }
-  const { keyId, keySecret } = credentials();
+  const { keyId, keySecret } = await credentials();
   const response = await fetch(
     `https://api.razorpay.com/v1/payments/${encodeURIComponent(input.paymentId)}/refund`,
     {
@@ -146,19 +145,24 @@ export async function createRazorpayRefund(input: {
   return { status: response.status, refund };
 }
 
-export function verifyCheckoutSignature(
+export async function verifyCheckoutSignature(
   orderId: string,
   paymentId: string,
   signature: string,
 ) {
-  const { keySecret } = credentials();
+  const { keySecret } = await credentials();
   return matchesCheckoutSignature(orderId, paymentId, signature, keySecret);
 }
 
-export function verifyWebhookSignature(rawBody: string, signature: string) {
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-  if (!secret) throw new Error("Razorpay webhook is not configured.");
-  return matchesWebhookSignature(rawBody, signature, secret);
+export async function verifyWebhookSignature(
+  rawBody: string,
+  signature: string,
+) {
+  const config = await getRazorpayConfiguration();
+  if (!config?.webhookSecret) {
+    throw new Error("Razorpay webhook is not configured.");
+  }
+  return matchesWebhookSignature(rawBody, signature, config.webhookSecret);
 }
 
 export function webhookEventId(rawBody: string, headerValue: string | null) {

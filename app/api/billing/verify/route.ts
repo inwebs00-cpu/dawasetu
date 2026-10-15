@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         { status: 404 },
       );
     }
-    if (!verifyCheckoutSignature(orderId, paymentId, signature)) {
+    if (!(await verifyCheckoutSignature(orderId, paymentId, signature))) {
       return NextResponse.json(
         { error: "Payment signature could not be verified." },
         { status: 400 },
