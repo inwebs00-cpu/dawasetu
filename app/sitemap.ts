@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = (
-    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+    process.env.NEXT_PUBLIC_SITE_URL || "https://dawasetu-omega.vercel.app"
   ).replace(/\/$/, "");
   const [businesses, posts, doctors] = await Promise.all([
     listPublicBusinesses(100),
@@ -22,6 +22,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${origin}/doctors`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${origin}/about`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${origin}/contact`, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${origin}/privacy`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${origin}/terms`, changeFrequency: "yearly", priority: 0.3 },
+    {
+      url: `${origin}/refund-cancellation`,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
     { url: `${origin}/blog`, changeFrequency: "weekly", priority: 0.6 },
   ];
   if (businesses.status === "ready") {
@@ -34,7 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       })),
     );
   }
-  if (posts.configured && !posts.error) {
+  if (posts.posts.length > 0) {
     pages.push(
       ...posts.posts.map((post) => ({
         url: `${origin}/blog/${encodeURIComponent(post.slug)}`,

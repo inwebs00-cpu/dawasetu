@@ -133,7 +133,8 @@ export async function updateBusinessProfileAction(
     revalidatePath(`/partner/${businessId}/profile`);
     revalidatePath("/pharmacies");
     return { message: "Business profile saved." };
-  } catch {
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
     return { error: "Business profile is temporarily unavailable." };
   }
 }

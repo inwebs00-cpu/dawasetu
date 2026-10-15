@@ -41,6 +41,7 @@ export function SupportTicketForm() {
           <option value="account">Account</option>
           <option value="partner onboarding">Partner onboarding</option>
           <option value="medicine availability">Medicine availability</option>
+          <option value="billing or payments">Billing or payments</option>
           <option value="privacy or safety">Privacy or safety</option>
           <option value="other">Other</option>
         </select>

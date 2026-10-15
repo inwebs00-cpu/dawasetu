@@ -1,7 +1,13 @@
 import "server-only";
 
+import { editorialPosts } from "@/lib/content/editorial-posts";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/services/medicine-search";
+
+export type {
+  EditorialSection,
+  EditorialSource,
+} from "@/lib/content/editorial-posts";
 
 export interface PublicContentPost {
   id: string;
@@ -12,12 +18,14 @@ export interface PublicContentPost {
   seo_title: string | null;
   seo_description: string | null;
   published_at: string;
+  sections?: (typeof editorialPosts)[number]["sections"];
+  sources?: (typeof editorialPosts)[number]["sources"];
 }
 
 export async function getPublishedPosts() {
   if (!isSupabaseConfigured())
     return {
-      posts: [] as PublicContentPost[],
+      posts: editorialPosts as PublicContentPost[],
       error: false,
       configured: false,
     };
@@ -34,24 +42,38 @@ export async function getPublishedPosts() {
       .limit(50);
     if (error)
       return {
-        posts: [] as PublicContentPost[],
+        posts: editorialPosts as PublicContentPost[],
         error: true,
         configured: true,
       };
+    const databasePosts = (data ?? []) as PublicContentPost[];
+    const databaseSlugs = new Set(databasePosts.map((post) => post.slug));
     return {
-      posts: (data ?? []) as PublicContentPost[],
+      posts: [
+        ...databasePosts,
+        ...editorialPosts.filter((post) => !databaseSlugs.has(post.slug)),
+      ].sort(
+        (first, second) =>
+          new Date(second.published_at).getTime() -
+          new Date(first.published_at).getTime(),
+      ),
       error: false,
       configured: true,
     };
   } catch {
-    return { posts: [] as PublicContentPost[], error: true, configured: true };
+    return {
+      posts: editorialPosts as PublicContentPost[],
+      error: true,
+      configured: true,
+    };
   }
 }
 
 export async function getPublishedPost(slug: string) {
+  const editorialPost = editorialPosts.find((post) => post.slug === slug);
   if (!isSupabaseConfigured())
     return {
-      post: null as PublicContentPost | null,
+      post: (editorialPost ?? null) as PublicContentPost | null,
       error: false,
       configured: false,
     };
@@ -68,18 +90,18 @@ export async function getPublishedPost(slug: string) {
       .maybeSingle();
     if (error)
       return {
-        post: null as PublicContentPost | null,
+        post: (editorialPost ?? null) as PublicContentPost | null,
         error: true,
         configured: true,
       };
     return {
-      post: (data ?? null) as PublicContentPost | null,
+      post: (data ?? editorialPost ?? null) as PublicContentPost | null,
       error: false,
       configured: true,
     };
   } catch {
     return {
-      post: null as PublicContentPost | null,
+      post: (editorialPost ?? null) as PublicContentPost | null,
       error: true,
       configured: true,
     };

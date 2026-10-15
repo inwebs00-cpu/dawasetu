@@ -4,40 +4,63 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAuthenticatedUser } from "@/lib/auth/authorization";
+import type { AuthActionState } from "@/types/auth";
 
-export async function updateAccountProfileAction(formData: FormData) {
+export async function updateAccountProfileAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
   const nameValue = formData.get("full_name");
-  const phoneValue = formData.get("phone_e164");
+  const phoneValue = formData.get("phone");
   const languageValue = formData.get("preferred_language");
   const fullName = typeof nameValue === "string" ? nameValue.trim() : "";
-  const phone = typeof phoneValue === "string" ? phoneValue.trim() : "";
+  const phoneInput = typeof phoneValue === "string" ? phoneValue.trim() : "";
+  const compactPhone = phoneInput.replace(/[\s()-]/g, "");
+  const indianDigits = compactPhone.replace(/^\+91/, "");
+  const phone = phoneInput
+    ? /^[6-9]\d{9}$/.test(indianDigits)
+      ? `+91${indianDigits}`
+      : /^\+[1-9]\d{7,14}$/.test(compactPhone)
+        ? compactPhone
+        : null
+    : "";
   const language =
     typeof languageValue === "string" ? languageValue.trim() : "en";
   if (
     fullName.length < 1 ||
     fullName.length > 160 ||
-    (phone && !/^\+[1-9]\d{7,14}$/.test(phone)) ||
+    phone === null ||
     !/^[a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,8})?$/.test(language)
   ) {
-    redirect("/account?profile_error=invalid");
+    return {
+      error:
+        "Enter a valid 10-digit Indian mobile number. You can type it with or without +91.",
+    };
   }
   try {
     const { supabase, user } = await requireAuthenticatedUser();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("users")
       .update({
         full_name: fullName,
         phone_e164: phone || null,
         preferred_language: language,
       })
-      .eq("id", user.id);
-    if (error) redirect("/account?profile_error=save");
+      .eq("id", user.id)
+      .select("id")
+      .maybeSingle();
+    if (error || !data) {
+      return {
+        error:
+          "Profile could not be saved. Check whether this phone number is already used, then try again.",
+      };
+    }
     revalidatePath("/account");
+    return { message: "Your profile was updated." };
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
-    redirect("/account?profile_error=save");
+    return { error: "Profile could not be saved. Please try again." };
   }
-  redirect("/account?profile=updated");
 }
 
 export async function removeSavedMedicineAction(formData: FormData) {

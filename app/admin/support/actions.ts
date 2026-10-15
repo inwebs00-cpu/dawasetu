@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requirePlatformPermission } from "@/lib/auth/authorization";
+import { notifyRequesterOfSupportUpdate } from "@/lib/notifications/support-email";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function updateSupportTicketAction(formData: FormData) {
   const ticketId = formData.get("ticket_id");
@@ -27,6 +29,11 @@ export async function updateSupportTicketAction(formData: FormData) {
 
   try {
     const { supabase } = await requirePlatformPermission("support.manage");
+    const { data: previousTicket } = await supabase
+      .from("support_tickets")
+      .select("requester_user_id, ticket_number, subject, status")
+      .eq("id", ticketId)
+      .maybeSingle();
     const { error } = await supabase.rpc("admin_update_support_ticket", {
       p_ticket_id: ticketId,
       p_status: status,
@@ -36,6 +43,27 @@ export async function updateSupportTicketAction(formData: FormData) {
       p_assign_to_me: assignToMe,
     });
     if (error) redirect("/admin/support?error=save");
+    const shouldNotifyRequester =
+      Boolean(message && !internal) || previousTicket?.status !== status;
+    if (previousTicket && shouldNotifyRequester) {
+      try {
+        const admin = createSupabaseAdminClient();
+        const { data: requester } = await admin.auth.admin.getUserById(
+          previousTicket.requester_user_id,
+        );
+        if (requester.user?.email) {
+          await notifyRequesterOfSupportUpdate({
+            to: requester.user.email,
+            ticketNumber: previousTicket.ticket_number,
+            subject: previousTicket.subject,
+            status,
+            publicReply: message && !internal ? message : undefined,
+          });
+        }
+      } catch {
+        console.error("DawaSetu requester support notification failed");
+      }
+    }
     revalidatePath("/admin/support");
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;

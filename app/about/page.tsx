@@ -3,16 +3,49 @@ import type { Metadata } from "next";
 
 import { Brand } from "@/components/brand/brand";
 import { Button } from "@/components/ui/button";
+import { getPublicBusinessDetails } from "@/lib/site/public-business-details";
 
 export const metadata: Metadata = {
   title: "About DawaSetu",
   description:
-    "Learn how DawaSetu connects people with partner-reported medicine availability.",
+    "Learn how DawaSetu helps people find nearby pharmacies and check partner-reported medicine availability across India.",
+  keywords: [
+    "about DawaSetu",
+    "India medicine availability network",
+    "find nearby pharmacies",
+  ],
+  alternates: { canonical: "/about" },
+  openGraph: {
+    title: "About DawaSetu | India’s Medicine Availability Network",
+    description:
+      "How DawaSetu connects people with nearby pharmacies reporting medicine availability.",
+    url: "/about",
+    type: "website",
+  },
 };
 
 export default function AboutPage() {
+  const details = getPublicBusinessDetails();
+  const organization = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: details.legalName || "DawaSetu",
+    url:
+      process.env.NEXT_PUBLIC_SITE_URL || "https://dawasetu-omega.vercel.app",
+    description:
+      "India’s medicine availability network connecting people with nearby pharmacies and care partners.",
+    ...(details.address ? { address: details.address } : {}),
+    ...(details.supportEmail ? { email: details.supportEmail } : {}),
+    ...(details.supportPhone ? { telephone: details.supportPhone } : {}),
+  };
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-5 sm:px-8 sm:py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(organization).replace(/</g, "\\u003c"),
+        }}
+      />
       <div className="mx-auto max-w-5xl">
         <header className="mb-10 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:px-6">
           <Brand compact />
@@ -28,6 +61,15 @@ export default function AboutPage() {
           DawaSetu helps people discover which nearby pharmacies and care
           partners report medicine availability, and gives them a direct way to
           contact the business before visiting.
+        </p>
+        <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
+          Operated by {details.legalName || "DawaSetu"}
+          {details.address ? `, ${details.address}` : ""}. For support or
+          business enquiries, visit our{" "}
+          <Link className="font-medium text-teal-800 underline" href="/contact">
+            Contact page
+          </Link>
+          .
         </p>
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {[
@@ -62,6 +104,12 @@ export default function AboutPage() {
         <Button asChild className="mt-7">
           <Link href="/medicines">Find a medicine</Link>
         </Button>
+        <Link
+          className="ml-4 text-sm font-medium text-teal-800 underline"
+          href="/privacy"
+        >
+          Read our privacy policy
+        </Link>
       </div>
     </main>
   );

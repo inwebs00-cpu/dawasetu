@@ -11,7 +11,21 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Nearby pharmacies and clinics",
   description:
-    "Browse approved pharmacies and healthcare partners reporting public medicine availability.",
+    "Find approved pharmacies, clinic pharmacies and nursing home pharmacies in India with public medicine availability on DawaSetu.",
+  keywords: [
+    "nearby pharmacies India",
+    "pharmacy medicine availability",
+    "find local pharmacy",
+    "approved pharmacy directory",
+  ],
+  alternates: { canonical: "/pharmacies" },
+  openGraph: {
+    title: "Nearby Pharmacies | DawaSetu",
+    description:
+      "Browse approved local pharmacies reporting public medicine availability.",
+    url: "/pharmacies",
+    type: "website",
+  },
 };
 
 export default async function PharmaciesPage() {
@@ -26,7 +40,7 @@ export default async function PharmaciesPage() {
               <Link href="/medicines">Find medicine</Link>
             </Button>
             <Button asChild variant="secondary" size="sm">
-              <Link href="/login">Sign in</Link>
+              <Link href="/account">Account</Link>
             </Button>
           </nav>
         </header>

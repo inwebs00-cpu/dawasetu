@@ -10,7 +10,20 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Doctor appointments",
   description:
-    "Browse doctor profiles linked to their exact Click2Book appointment pages.",
+    "Browse published doctor profiles in India and visit their linked Click2Book appointment pages.",
+  keywords: [
+    "doctor profiles India",
+    "doctor appointment booking",
+    "Click2Book doctor appointment",
+  ],
+  alternates: { canonical: "/doctors" },
+  openGraph: {
+    title: "Doctor Profiles and Appointments | DawaSetu",
+    description:
+      "Browse published doctor profiles and open their linked appointment booking pages.",
+    url: "/doctors",
+    type: "website",
+  },
 };
 
 export default async function DoctorsPage() {
@@ -25,7 +38,7 @@ export default async function DoctorsPage() {
               <Link href="/medicines">Find medicine</Link>
             </Button>
             <Button asChild variant="secondary" size="sm">
-              <Link href="/login">Sign in</Link>
+              <Link href="/account">Account</Link>
             </Button>
           </nav>
         </header>

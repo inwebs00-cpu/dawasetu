@@ -1,11 +1,23 @@
 import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://dawasetu-omega.vercel.app";
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/medicines", "/pharmacies", "/about", "/blog"],
+      allow: [
+        "/",
+        "/medicines",
+        "/pharmacies",
+        "/about",
+        "/blog",
+        "/doctors",
+        "/contact",
+        "/privacy",
+        "/terms",
+        "/refund-cancellation",
+      ],
       disallow: [
         "/admin",
         "/partner",

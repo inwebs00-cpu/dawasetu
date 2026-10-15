@@ -180,7 +180,13 @@ const portalLinks: { portal: LoginPortal; label: string; href: string }[] = [
   { portal: "distributor", label: "Distributor", href: "/distributor/login" },
 ];
 
-export function LoginForm({ portal = "customer" }: { portal?: LoginPortal }) {
+export function LoginForm({
+  portal = "customer",
+  nextPath,
+}: {
+  portal?: LoginPortal;
+  nextPath?: string;
+}) {
   const copy = portalCopy[portal];
   return (
     <FormFrame
@@ -191,6 +197,9 @@ export function LoginForm({ portal = "customer" }: { portal?: LoginPortal }) {
       footer={copy.footer}
     >
       <input type="hidden" name="portal" value={portal} />
+      {portal === "customer" && nextPath && (
+        <input type="hidden" name="next" value={nextPath} />
+      )}
       <Field
         id="login-email"
         label="Email"
@@ -319,22 +328,41 @@ export function ForgotPasswordForm() {
   );
 }
 
-export function UpdatePasswordForm() {
+export function UpdatePasswordForm({
+  firstLogin = false,
+  nextPath,
+}: {
+  firstLogin?: boolean;
+  nextPath?: string;
+}) {
   return (
     <FormFrame
-      title="Choose a new password"
-      intro="Reset links are single-use and expire. Choose a password with at least 12 characters."
+      title={firstLogin ? "Set your new password" : "Choose a new password"}
+      intro={
+        firstLogin
+          ? "For account security, choose a new password before opening your workspace. Use at least 12 characters."
+          : "Reset links are single-use and expire. Choose a password with at least 12 characters."
+      }
       action={updatePasswordAction}
-      submitLabel="Update password"
+      submitLabel={firstLogin ? "Save new password" : "Update password"}
       footer={
-        <Link
-          className="font-semibold text-teal-800 hover:underline"
-          href="/forgot-password"
-        >
-          Request another reset link
-        </Link>
+        firstLogin ? (
+          <span>
+            Your admin access will unlock after this password is saved.
+          </span>
+        ) : (
+          <Link
+            className="font-semibold text-teal-800 hover:underline"
+            href="/forgot-password"
+          >
+            Request another reset link
+          </Link>
+        )
       }
     >
+      {firstLogin && nextPath && (
+        <input type="hidden" name="next" value={nextPath} />
+      )}
       <Field
         id="new-password"
         label="New password"

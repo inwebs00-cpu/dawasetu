@@ -8,17 +8,58 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getPublishedPosts } from "@/services/content";
 
 export const metadata: Metadata = {
-  title: "DawaSetu updates",
+  title: "Medicine and Pharmacy Guides",
   description:
-    "News and helpful updates from the DawaSetu medicine availability network.",
+    "Practical pharmacy, medicine availability and health information from DawaSetu, with trusted references and clear limits on medical advice.",
+  keywords: [
+    "medicine availability guide India",
+    "nearby pharmacy medicine stock",
+    "pharmacy guides India",
+    "medicine storage information",
+    "antibiotic use information",
+  ],
+  alternates: { canonical: "/blog" },
+  openGraph: {
+    title: "Medicine and Pharmacy Guides | DawaSetu",
+    description:
+      "Practical pharmacy and medicine availability information from DawaSetu.",
+    url: "/blog",
+    type: "website",
+  },
 };
 
 export const dynamic = "force-dynamic";
 
+function safeJsonLd(value: unknown) {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
 export default async function BlogPage() {
   const result = await getPublishedPosts();
+  const itemList = {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    name: "DawaSetu Medicine and Pharmacy Guides",
+    url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://dawasetu-omega.vercel.app"}/blog`,
+    blogPost: result.posts.map((post) => ({
+      "@type": "BlogPosting",
+      headline: post.title,
+      description: post.summary,
+      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://dawasetu-omega.vercel.app"}/blog/${encodeURIComponent(post.slug)}`,
+      datePublished: post.published_at,
+    })),
+  };
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-5 sm:px-8 sm:py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(itemList) }}
+      />
       <div className="mx-auto max-w-5xl">
         <header className="mb-8 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:px-6">
           <Brand compact />
@@ -28,28 +69,24 @@ export default async function BlogPage() {
         </header>
         <p className="text-sm font-semibold text-teal-800">Updates</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
-          DawaSetu blog
+          Medicine · Pharmacy · Health information
         </h1>
-        {result.error ? (
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+          Practical information for finding local medicine availability and
+          speaking with a pharmacy. These articles do not diagnose, prescribe,
+          or recommend medicine substitutions.
+        </p>
+        {result.error && (
+          <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+            Live blog updates are temporarily unavailable. The DawaSetu
+            editorial guides are still available below.
+          </p>
+        )}
+        {result.posts.length === 0 ? (
           <div className="mt-7">
             <EmptyState
-              title="Updates are temporarily unavailable"
-              description="Please return later to see DawaSetu news and updates."
-            />
-          </div>
-        ) : !result.configured || result.posts.length === 0 ? (
-          <div className="mt-7">
-            <EmptyState
-              title={
-                result.configured
-                  ? "No posts have been published yet"
-                  : "Updates are not connected yet"
-              }
-              description={
-                result.configured
-                  ? "Updates will appear here when the DawaSetu team publishes them."
-                  : "Configure Supabase and apply the DawaSetu migrations to connect published updates."
-              }
+              title="No posts have been published yet"
+              description="New DawaSetu guides will appear here when the team publishes them."
             />
           </div>
         ) : (

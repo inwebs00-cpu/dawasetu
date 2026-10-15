@@ -9,6 +9,8 @@ import {
   type LoginBusiness,
   type LoginPortal,
 } from "@/lib/auth/login-portals";
+import { getSafeNextPath } from "@/lib/auth/safe-next-path";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { AuthActionState } from "@/types/auth";
 
 function textField(formData: FormData, name: string): string {
@@ -90,17 +92,17 @@ export async function signInAction(
 
   try {
     const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (error) return { error: "Email or password is incorrect." };
+    if (error || !signInData.user)
+      return { error: "Email or password is incorrect." };
 
     let destination: string | null = null;
     if (portal === "admin") {
       const { data, error: permissionError } = await supabase.rpc(
-        "has_platform_permission",
-        { p_permission_key: "dashboard.view" },
+        "can_access_admin_portal",
       );
       if (permissionError) {
         await supabase.auth.signOut();
@@ -123,7 +125,10 @@ export async function signInAction(
         (data ?? []) as LoginBusiness[],
       );
     } else {
-      destination = getLoginDestination(portal);
+      destination =
+        (portal === "customer"
+          ? getSafeNextPath(textField(formData, "next"))
+          : null) ?? getLoginDestination(portal);
     }
 
     if (!destination) {
@@ -137,7 +142,19 @@ export async function signInAction(
               : "No distributor business is linked to this account yet.",
       };
     }
-    return await redirectAfterAuthentication(supabase, destination);
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("password_change_required")
+      .eq("id", signInData.user.id)
+      .maybeSingle();
+    if (profileError || !profile) {
+      await supabase.auth.signOut();
+      return { error: "Account security could not be verified. Please retry." };
+    }
+    const nextPath = profile.password_change_required
+      ? `/change-password?next=${encodeURIComponent(destination)}`
+      : destination;
+    return await redirectAfterAuthentication(supabase, nextPath);
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
     return clientError();
@@ -227,13 +244,39 @@ export async function updatePasswordAction(
       return {
         error: "This reset link is invalid or has expired. Request a new one.",
       };
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("password_change_required")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profileError || !profile)
+      return { error: "Account security could not be verified. Please retry." };
+
+    // Check that privileged configuration exists before changing the password,
+    // so an admin cannot be left locked out after a successful Auth update.
+    const admin = profile.password_change_required
+      ? createSupabaseAdminClient()
+      : null;
     const { error } = await supabase.auth.updateUser({ password });
     if (error)
       return {
         error:
           "The password could not be updated. Request a new reset link and try again.",
       };
-    redirect("/account");
+    if (admin) {
+      const { error: clearError } = await admin
+        .from("users")
+        .update({ password_change_required: false })
+        .eq("id", user.id)
+        .eq("password_change_required", true);
+      if (clearError)
+        return {
+          error:
+            "Your password changed, but account setup could not finish. Submit your new password once more or contact support.",
+        };
+    }
+    const nextPath = getSafeNextPath(textField(formData, "next"));
+    redirect(nextPath ?? "/account");
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
     return clientError();
