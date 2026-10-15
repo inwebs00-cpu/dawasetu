@@ -587,24 +587,38 @@ export default async function HomePage() {
         </section>
 
         <footer className="flex flex-col gap-4 border-t border-slate-200 py-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>DawaSetu · India’s Medicine Availability Network</p>
-          <nav
-            aria-label="Footer navigation"
-            className="flex flex-wrap gap-x-5 gap-y-2"
-          >
-            <Link href="/about" className="hover:text-teal-800">
-              About
-            </Link>
-            <Link href="/blog" className="hover:text-teal-800">
-              Blog
-            </Link>
-            <Link href="/contact" className="hover:text-teal-800">
-              Contact
-            </Link>
-            <Link href="/account" className="hover:text-teal-800">
-              My account
-            </Link>
-          </nav>
+          <div className="min-w-0">
+            <p className="font-semibold text-slate-700">
+              DawaSetu · India’s Medicine Availability Network
+            </p>
+            <nav
+              aria-label="Policies and company information"
+              className="mt-3 flex flex-wrap gap-x-4 gap-y-2"
+            >
+              <Link href="/privacy" className="hover:text-teal-800">
+                Privacy policy
+              </Link>
+              <Link href="/terms" className="hover:text-teal-800">
+                Terms &amp; conditions
+              </Link>
+              <Link href="/refund-cancellation" className="hover:text-teal-800">
+                Refund &amp; cancellation
+              </Link>
+              <Link href="/about" className="hover:text-teal-800">
+                About us
+              </Link>
+              <Link href="/contact" className="hover:text-teal-800">
+                Contact
+              </Link>
+              <Link href="/blog" className="hover:text-teal-800">
+                Blog
+              </Link>
+            </nav>
+          </div>
+          <p className="shrink-0 text-left font-medium text-slate-600 sm:text-right">
+            Made with love in India <span className="text-slate-400">·</span>{" "}
+            <span className="font-semibold text-teal-800">InWebs</span>
+          </p>
         </footer>
       </div>
 
