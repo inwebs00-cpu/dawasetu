@@ -1,6 +1,6 @@
 export function getPublicBusinessDetails() {
   return {
-    legalName: process.env.NEXT_PUBLIC_LEGAL_ENTITY_NAME?.trim() || "",
+    legalName: process.env.NEXT_PUBLIC_LEGAL_ENTITY_NAME?.trim() || "Inwebs",
     address: process.env.NEXT_PUBLIC_BUSINESS_ADDRESS?.trim() || "",
     supportEmail:
       process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() ||
