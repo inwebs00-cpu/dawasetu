@@ -34,6 +34,17 @@ interface RazorpayWebhook {
   };
 }
 
+export async function GET() {
+  return NextResponse.json(
+    {
+      ok: true,
+      endpoint: "Razorpay webhook",
+      message: "Endpoint is online. Razorpay deliveries must use signed POST requests.",
+    },
+    { headers: { Allow: "GET, POST" } },
+  );
+}
+
 export async function POST(request: Request) {
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > 1_000_000) {
