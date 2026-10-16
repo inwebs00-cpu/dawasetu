@@ -2,6 +2,15 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+const emailOtpTypes = new Set([
+  "signup",
+  "invite",
+  "magiclink",
+  "recovery",
+  "email_change",
+  "email",
+]);
+
 function safePath(value: string | null): string {
   if (
     !value ||
@@ -16,11 +25,32 @@ function safePath(value: string | null): string {
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
+  const tokenHash = request.nextUrl.searchParams.get("token_hash");
+  const tokenType = request.nextUrl.searchParams.get("type");
   const next = safePath(request.nextUrl.searchParams.get("next"));
+  const callbackError = request.nextUrl.searchParams.get("error");
+  const loginPath = next === "/admin" ? "/admin/login" : "/login";
 
-  if (code) {
+  if (callbackError) {
+    return NextResponse.redirect(
+      new URL(`${loginPath}?error=link`, request.url),
+    );
+  }
+
+  if (code || (tokenHash && tokenType && emailOtpTypes.has(tokenType))) {
     const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error } = code
+      ? await supabase.auth.exchangeCodeForSession(code)
+      : await supabase.auth.verifyOtp({
+          token_hash: tokenHash!,
+          type: tokenType as
+            | "signup"
+            | "invite"
+            | "magiclink"
+            | "recovery"
+            | "email_change"
+            | "email",
+        });
     if (!error) {
       let destination = next;
       if (next === "/admin") {
@@ -62,7 +92,7 @@ export async function GET(request: NextRequest) {
       if (factorsError || assuranceError) {
         await supabase.auth.signOut();
         return NextResponse.redirect(
-          new URL("/login?error=security", request.url),
+          new URL(`${loginPath}?error=security`, request.url),
         );
       }
       const hasVerifiedFactor = factors.all.some(
@@ -77,5 +107,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL("/login", request.url));
+  return NextResponse.redirect(new URL(`${loginPath}?error=link`, request.url));
 }
