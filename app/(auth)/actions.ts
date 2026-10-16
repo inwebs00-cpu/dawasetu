@@ -55,6 +55,55 @@ function clientError(): AuthActionState {
   };
 }
 
+function adminOtpDeliveryFailure(error: unknown): AuthActionState {
+  const details =
+    error && typeof error === "object"
+      ? (error as { message?: unknown; status?: unknown; code?: unknown })
+      : {};
+  const message = typeof details.message === "string" ? details.message : "";
+  const code = typeof details.code === "string" ? details.code : "";
+  const status = typeof details.status === "number" ? details.status : null;
+  const failure = `${code} ${message}`.toLowerCase();
+
+  console.error("[admin-otp] Supabase email delivery failed", {
+    status,
+    code: code || "unknown",
+  });
+
+  if (
+    status === 429 ||
+    failure.includes("over_email_send_rate_limit") ||
+    failure.includes("rate limit")
+  ) {
+    return {
+      error:
+        "Supabase has temporarily limited sign-in emails. Its built-in sender is rate-limited; wait before retrying or configure custom SMTP in Supabase.",
+    };
+  }
+
+  if (
+    failure.includes("email address not authorized") ||
+    failure.includes("email_address_not_authorized")
+  ) {
+    return {
+      error:
+        "Supabase's built-in mail service cannot send to this inbox. Configure a custom SMTP provider in Supabase Auth settings, then try again.",
+    };
+  }
+
+  if (failure.includes("redirect") || failure.includes("redirect_to")) {
+    return {
+      error:
+        "Supabase rejected the admin sign-in callback URL. Add the production callback URL to Supabase Auth's Redirect URLs, then retry.",
+    };
+  }
+
+  return {
+    error:
+      "Supabase could not send the admin sign-in email. Check Supabase Auth logs and email delivery settings; no email was sent.",
+  };
+}
+
 async function redirectAfterAuthentication(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   nextPath: string,
@@ -182,24 +231,23 @@ export async function requestAdminOtpAction(
 
   try {
     const supabase = await createSupabaseServerClient();
-    await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: false,
         emailRedirectTo: `${siteOrigin()}/auth/callback?next=%2Fadmin`,
       },
     });
-  } catch {
-    // Keep the response the same whether the account exists or mail delivery
-    // is unavailable. Supabase also applies its own OTP rate limits.
+    if (error) return adminOtpDeliveryFailure(error);
+  } catch (error) {
+    return adminOtpDeliveryFailure(error);
   }
   return {
     otpRequested: true,
     message:
-      "If the admin account is active, a one-time sign-in email will arrive. Enter its code below or open its sign-in link.",
+      "Supabase accepted the email request. Check your inbox and spam folder. If it does not arrive, the email provider may still block delivery; ask the platform operator to configure custom SMTP.",
   };
 }
-
 export async function verifyAdminOtpAction(
   _previousState: AuthActionState,
   formData: FormData,
