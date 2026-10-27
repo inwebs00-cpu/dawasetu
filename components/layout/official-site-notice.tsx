@@ -13,7 +13,7 @@ export function OfficialSiteNotice() {
       setClosing(true);
       removeTimer = window.setTimeout(() => setVisible(false), 240);
     };
-    const dismissTimer = window.setTimeout(close, 3000);
+    const dismissTimer = window.setTimeout(close, 5000);
 
     return () => {
       window.clearTimeout(dismissTimer);
