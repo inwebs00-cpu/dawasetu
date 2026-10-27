@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import { PwaInstallPrompt } from "@/components/pwa/install-prompt";
+import { OfficialSiteNotice } from "@/components/layout/official-site-notice";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { ToastProvider } from "@/components/ui/toast";
 
@@ -48,6 +49,7 @@ export default function RootLayout({
       <body>
         <ToastProvider>
           {children}
+          <OfficialSiteNotice />
           <PwaInstallPrompt />
           <SiteFooter />
         </ToastProvider>
