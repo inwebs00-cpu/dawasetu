@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { Brand } from "@/components/brand/brand";
 import {
+  InventoryBulkUpload,
   MedicineMasterSearch,
   SubmitMedicineForm,
   UpdateInventoryForm,
@@ -21,6 +22,7 @@ type PageParams = Promise<{ businessId: string }>;
 interface BusinessSummary {
   business_id: string;
   business_name: string;
+  business_type: string;
   business_status: string;
 }
 
@@ -121,6 +123,13 @@ export default async function PartnerInventoryPage({
         )}
 
         <div className="mt-7 grid gap-5">
+          {[
+            "Retail Pharmacy",
+            "Clinic Pharmacy",
+            "Nursing Home Pharmacy",
+          ].includes(business.business_type) && (
+            <InventoryBulkUpload businessId={businessId} />
+          )}
           <MedicineMasterSearch businessId={businessId} />
           <SubmitMedicineForm businessId={businessId} categories={categories} />
           <section>

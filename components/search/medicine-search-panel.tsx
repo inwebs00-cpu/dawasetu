@@ -13,6 +13,7 @@ import type {
   SearchResult,
 } from "@/services/medicine-search";
 import { MedicineResultCard } from "@/components/search/medicine-result-card";
+import { MedicineCatalogCard } from "@/components/search/medicine-catalog-card";
 
 export function MedicineSearchPanel({
   query,
@@ -210,6 +211,29 @@ export function MedicineSearchPanel({
           title="Search the medicine network"
           description="Enter a medicine name or choose a category to see reported availability."
         />
+      ) : result.rows.length === 0 && (result.catalogRows?.length ?? 0) > 0 ? (
+        <section className="grid gap-4">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
+            <h2 className="font-semibold text-amber-950">
+              {hasNearbySearch
+                ? "Medicine found, but no nearby stock is reported"
+                : "Medicine found in the catalogue"}
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-amber-900">
+              Approved medicine details are available below. No partner has
+              reported public availability for this search yet. You can ask
+              nearby partners to check.
+            </p>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {result.catalogRows?.map((medicine) => (
+              <MedicineCatalogCard
+                key={medicine.medicine_id}
+                medicine={medicine}
+              />
+            ))}
+          </div>
+        </section>
       ) : result.rows.length === 0 ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
           <EmptyState

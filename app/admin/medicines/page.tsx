@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { MedicineReviewControls } from "@/components/admin/medicine-review-controls";
+import { MedicineBulkUpload } from "@/components/admin/medicine-bulk-upload";
 import { Brand } from "@/components/brand/brand";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -144,6 +145,7 @@ export default async function AdminMedicinesPage({
             </Button>
           </div>
         </form>
+        {canManage && <MedicineBulkUpload />}
         {listResult.error && (
           <p
             role="alert"

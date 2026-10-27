@@ -14,6 +14,7 @@ import { useState, useTransition, type FormEvent } from "react";
 import { searchNearbyAction } from "@/app/medicines/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MedicineCatalogCard } from "@/components/search/medicine-catalog-card";
 import type {
   PublicMedicineSearchRow,
   SearchResult,
@@ -157,6 +158,8 @@ export function HomeSearch() {
   }
 
   const rows = nearbyResult?.status === "ready" ? nearbyResult.rows : [];
+  const catalogRows =
+    nearbyResult?.status === "ready" ? (nearbyResult.catalogRows ?? []) : [];
   const visibleRows = showAllMatches ? rows : rows.slice(0, 3);
 
   return (
@@ -269,7 +272,9 @@ export function HomeSearch() {
             <h2 className="text-sm font-bold text-slate-900">
               {rows.length > 0
                 ? "Nearby partner reports"
-                : "No current matches nearby"}
+                : catalogRows.length > 0
+                  ? "No nearby stock reported"
+                  : "No current matches nearby"}
             </h2>
             {rows.length > 3 && (
               <button
@@ -290,6 +295,15 @@ export function HomeSearch() {
                 />
               ))}
             </ul>
+          ) : catalogRows.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {catalogRows.slice(0, 4).map((medicine) => (
+                <MedicineCatalogCard
+                  key={medicine.medicine_id}
+                  medicine={medicine}
+                />
+              ))}
+            </div>
           ) : (
             <p className="rounded-xl bg-slate-50 px-3 py-3 text-xs leading-5 text-slate-600">
               No approved public partner has reported a matching medicine yet.

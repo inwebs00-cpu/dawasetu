@@ -23,6 +23,12 @@ export function BusinessDirectoryCard({
       ? `https://www.google.com/maps/dir/?api=1&destination=${business.latitude},${business.longitude}`
       : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${business.business_name}, ${address}`)}`;
   const whatsappNumber = business.whatsapp_e164?.replace(/[^0-9]/g, "");
+  const distance =
+    business.distance_km === null || !Number.isFinite(business.distance_km)
+      ? null
+      : business.distance_km < 1
+        ? `${Math.max(1, Math.round(business.distance_km * 1000))} m away`
+        : `${business.distance_km.toFixed(business.distance_km < 10 ? 1 : 0)} km away`;
 
   return (
     <Card>
@@ -45,6 +51,9 @@ export function BusinessDirectoryCard({
           />
           <span>{address}</span>
         </p>
+        {distance && (
+          <p className="mt-2 text-xs font-semibold text-teal-800">{distance}</p>
+        )}
         <div className="mt-5 flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline">
             <Link

@@ -28,6 +28,17 @@ export interface PublicMedicineSearchRow {
   distance_km: number | null;
 }
 
+export interface PublicMedicineCatalogRow {
+  medicine_id: string;
+  product_name: string;
+  brand_name: string | null;
+  composition: string | null;
+  strength: string;
+  manufacturer_name: string | null;
+  medicine_type: string;
+  prescription_class: string;
+}
+
 export interface MedicineCategory {
   slug: string;
   name: string;
@@ -48,7 +59,11 @@ export interface SameCompositionMedicine {
 }
 
 export type SearchResult =
-  | { status: "ready"; rows: PublicMedicineSearchRow[] }
+  | {
+      status: "ready";
+      rows: PublicMedicineSearchRow[];
+      catalogRows?: PublicMedicineCatalogRow[];
+    }
   | { status: "unconfigured" }
   | { status: "error" };
 
@@ -122,10 +137,9 @@ export async function searchPublicMedicines(
       p_category_slug: categorySlug,
     });
     if (error || !Array.isArray(data)) return { status: "error" };
+    const rows = data as PublicMedicineSearchRow[];
     if (normalizedQuery.length >= 2) {
-      await recordPublicMedicineSearch(
-        (data as PublicMedicineSearchRow[]).map((row) => row.medicine_id),
-      );
+      await recordPublicMedicineSearch(rows.map((row) => row.medicine_id));
       try {
         const {
           data: { user },
@@ -139,7 +153,25 @@ export async function searchPublicMedicines(
         // Recent-search history is optional and must not block availability results.
       }
     }
-    return { status: "ready", rows: data as PublicMedicineSearchRow[] };
+    let catalogRows: PublicMedicineCatalogRow[] = [];
+    if (
+      rows.length === 0 &&
+      (normalizedQuery.length >= 2 || categorySlug !== null)
+    ) {
+      const { data: catalogData, error: catalogError } = await rpcClient.rpc(
+        "search_public_medicine_catalog",
+        {
+          p_query: normalizedQuery,
+          p_limit: 30,
+          p_category_slug: categorySlug,
+        },
+      );
+      if (catalogError || !Array.isArray(catalogData)) {
+        return { status: "error" };
+      }
+      catalogRows = catalogData as PublicMedicineCatalogRow[];
+    }
+    return { status: "ready", rows, catalogRows };
   } catch {
     return { status: "error" };
   }
