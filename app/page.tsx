@@ -17,6 +17,7 @@ import {
 
 import { Brand } from "@/components/brand/brand";
 import { BusinessDirectoryCard } from "@/components/business/business-directory-card";
+import { HomepageBannerCarousel } from "@/components/home/homepage-banner-carousel";
 import { HomeSearch } from "@/components/search/home-search";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,7 @@ import {
 } from "@/services/medicine-search";
 import { listPublicBusinesses } from "@/services/business-directory";
 import { listPublicRedirectWebsites } from "@/services/redirect-websites";
+import { listPublicHomepageBanners } from "@/services/homepage-banners";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -203,11 +205,13 @@ function HeroMapIllustration() {
 }
 
 export default async function HomePage() {
-  const [categories, directory, redirectWebsites] = await Promise.all([
-    getMedicineCategories(),
-    listPublicBusinesses(),
-    listPublicRedirectWebsites(),
-  ]);
+  const [categories, directory, redirectWebsites, homepageBanners] =
+    await Promise.all([
+      getMedicineCategories(),
+      listPublicBusinesses(),
+      listPublicRedirectWebsites(),
+      listPublicHomepageBanners(),
+    ]);
   const homepageCategories =
     categories.length > 0 ? categories : defaultCategories;
 
@@ -270,6 +274,9 @@ export default async function HomePage() {
       </header>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-8">
+        {homepageBanners.length > 0 && (
+          <HomepageBannerCarousel banners={homepageBanners} />
+        )}
         <section className="relative isolate mt-5 overflow-hidden rounded-[2rem] border border-[#dceeed] bg-[radial-gradient(ellipse_at_4%_4%,_rgba(255,255,255,0.95),_transparent_42%),linear-gradient(118deg,_#eef8fb_0%,_#e8f6f4_54%,_#e1f3ec_100%)] px-5 py-8 shadow-[0_22px_55px_-42px_rgba(15,62,68,0.46)] sm:mt-7 sm:px-9 sm:py-12 lg:px-12 lg:py-14">
           <div className="pointer-events-none absolute -top-24 left-[43%] size-80 rounded-full bg-white/40 blur-3xl" />
           <div className="relative grid items-center gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
