@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import type { HomepageBanner } from "@/types/homepage-banner";
 
@@ -27,6 +27,18 @@ export function HomepageBannerCarousel({
   banners: HomepageBanner[];
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (banners.length < 2 || isPaused) return;
+
+    const intervalId = window.setInterval(() => {
+      setActiveIndex((index) => (index + 1) % banners.length);
+    }, 5_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [banners.length, isPaused]);
+
   if (banners.length === 0) return null;
 
   const banner = banners[activeIndex] ?? banners[0];
@@ -73,6 +85,23 @@ export function HomepageBannerCarousel({
             {activeIndex + 1} of {banners.length}
           </p>
           <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              aria-label={
+                isPaused
+                  ? "Play automatic banner rotation"
+                  : "Pause automatic banner rotation"
+              }
+              aria-pressed={isPaused}
+              onClick={() => setIsPaused((paused) => !paused)}
+              className="grid size-9 place-items-center rounded-full text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-emerald-700"
+            >
+              {isPaused ? (
+                <Play aria-hidden="true" className="size-4" />
+              ) : (
+                <Pause aria-hidden="true" className="size-4" />
+              )}
+            </button>
             <button
               type="button"
               aria-label="Previous banner"
