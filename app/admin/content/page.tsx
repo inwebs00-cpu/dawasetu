@@ -35,6 +35,9 @@ export default async function AdminContentPage() {
         <header className="mb-7 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:px-6">
           <Brand compact />
           <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/content/banners">Homepage banners</Link>
+            </Button>
             <Button asChild variant="ghost" size="sm">
               <Link href="/admin">Dashboard</Link>
             </Button>
