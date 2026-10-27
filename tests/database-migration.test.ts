@@ -50,6 +50,7 @@ const migrationPaths = [
   "supabase/migrations/20261016010000_admin_payment_gateway_settings.sql",
   "supabase/migrations/20261016020000_first_login_password_change.sql",
   "supabase/migrations/20261016030000_bulk_medicine_import_and_public_discovery.sql",
+"supabase/migrations/20261027010000_homepage_banner_management.sql",
 ].map((path) => resolve(process.cwd(), path));
 
 describe("DawaSetu core schema migration", () => {
@@ -142,6 +143,34 @@ describe("DawaSetu core schema migration", () => {
       ) as exists;
     `);
     expect(passwordChangeColumn.rows[0].exists).toBe(true);
+  });
+
+  it("publishes the supplied homepage banner through a restricted RPC", async () => {
+    const banner = await database.query<{ image_path: string; is_active: boolean }>(
+      "select image_path, is_active from public.homepage_banners where title = 'DawaSetu connects people to pharmacies'",
+    );
+    const privileges = await database.query<{
+      anon_select: boolean;
+      authenticated_select: boolean;
+      public_rpc: boolean;
+      rls_enabled: boolean;
+    }>(`
+      select
+        has_table_privilege('anon', 'public.homepage_banners', 'select') as anon_select,
+        has_table_privilege('authenticated', 'public.homepage_banners', 'select') as authenticated_select,
+        has_function_privilege('anon', 'public.list_public_homepage_banners()', 'execute') as public_rpc,
+        (select c.relrowsecurity from pg_catalog.pg_class c where c.oid = 'public.homepage_banners'::regclass) as rls_enabled;
+    `);
+
+    expect(banner.rows).toEqual([
+      { image_path: "/banners/dawasetu-connect-banner.jpeg", is_active: true },
+    ]);
+    expect(privileges.rows[0]).toEqual({
+      anon_select: false,
+      authenticated_select: false,
+      public_rpc: true,
+      rls_enabled: true,
+    });
   });
 
   it("keeps payment gateway secrets inaccessible to browser roles", async () => {
