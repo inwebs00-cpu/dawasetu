@@ -85,12 +85,28 @@ async function invokeRpc<T>(
 
 export async function listPublicBusinesses(
   limit = 30,
+  location?: { latitude: number; longitude: number },
 ): Promise<DirectoryResult> {
   if (!isSupabaseConfigured()) return { status: "unconfigured" };
+  const latitude = location?.latitude;
+  const longitude = location?.longitude;
+  const validCoordinates =
+    typeof latitude === "number" &&
+    typeof longitude === "number" &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180;
   try {
     const { data, error } = await invokeRpc<PublicBusinessRow[]>(
       "list_public_businesses",
-      { p_limit: Math.max(1, Math.min(100, Math.trunc(limit))) },
+      {
+        p_latitude: validCoordinates ? latitude : null,
+        p_longitude: validCoordinates ? longitude : null,
+        p_limit: Math.max(1, Math.min(30, Math.trunc(limit))),
+      },
     );
     if (error || !Array.isArray(data)) return { status: "error" };
     return { status: "ready", rows: data };

@@ -2,16 +2,15 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { Brand } from "@/components/brand/brand";
-import { BusinessDirectoryCard } from "@/components/business/business-directory-card";
+import { NearbyBusinessFinder } from "@/components/business/nearby-business-finder";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/states";
 import { listPublicBusinesses } from "@/services/business-directory";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Nearby pharmacies and clinics",
   description:
-    "Find approved pharmacies, clinic pharmacies and nursing home pharmacies in India with public medicine availability on DawaSetu.",
+    "Find approved pharmacies, clinic pharmacies and nursing home pharmacies near you on DawaSetu.",
   keywords: [
     "nearby pharmacies India",
     "pharmacy medicine availability",
@@ -21,8 +20,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/pharmacies" },
   openGraph: {
     title: "Nearby Pharmacies | DawaSetu",
-    description:
-      "Browse approved local pharmacies reporting public medicine availability.",
+    description: "Browse approved local pharmacies and care partners.",
     url: "/pharmacies",
     type: "website",
   },
@@ -52,37 +50,12 @@ export default async function PharmaciesPage() {
             Pharmacies and care partners
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            These are approved non-distributor businesses that have enabled
-            public visibility and reported at least one available medicine.
+            Find approved pharmacies, clinic pharmacies and nursing home
+            pharmacies. Use your location to sort public partner profiles by
+            distance.
           </p>
         </section>
-        <div className="mt-7">
-          {directory.status === "unconfigured" ? (
-            <EmptyState
-              title="The live directory is not connected"
-              description="Configure Supabase and apply the DawaSetu migrations to list verified partners."
-            />
-          ) : directory.status === "error" ? (
-            <EmptyState
-              title="The directory is temporarily unavailable"
-              description="Please try again shortly."
-            />
-          ) : directory.rows.length === 0 ? (
-            <EmptyState
-              title="No public partner listings yet"
-              description="Approved partner businesses will appear here after they enable public availability and report current medicine stock."
-            />
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {directory.rows.map((business) => (
-                <BusinessDirectoryCard
-                  key={business.business_id}
-                  business={business}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        <NearbyBusinessFinder initialResult={directory} />
         <p className="mt-8 rounded-xl bg-white px-4 py-3 text-xs leading-5 text-slate-500">
           DawaSetu displays partner-reported information. Call the business to
           confirm current availability before travelling.

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAuthenticatedUser } from "@/lib/auth/authorization";
+import { listPublicBusinesses } from "@/services/business-directory";
 import type { AuthActionState } from "@/types/auth";
 
 export async function submitBusinessReviewAction(
@@ -50,6 +51,25 @@ export async function submitBusinessReviewAction(
   } catch {
     return { error: "Review submission is temporarily unavailable." };
   }
+}
+
+export async function findNearbyPublicBusinessesAction(
+  latitude: number,
+  longitude: number,
+) {
+  if (
+    typeof latitude !== "number" ||
+    typeof longitude !== "number" ||
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    return { status: "error" as const };
+  }
+  return listPublicBusinesses(30, { latitude, longitude });
 }
 
 export async function submitBusinessInquiryAction(

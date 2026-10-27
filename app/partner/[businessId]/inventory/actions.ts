@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { parseCsv, parseCsvBoolean } from "@/lib/import/csv";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AuthActionState } from "@/types/auth";
 
@@ -21,6 +22,14 @@ export interface MedicineMasterOption {
 
 export interface InventorySearchState extends AuthActionState {
   results?: MedicineMasterOption[];
+}
+
+export interface InventoryBulkImportState extends AuthActionState {
+  rows?: Array<{
+    line: number;
+    result: "imported" | "not_found" | "ambiguous" | "error";
+    message: string;
+  }>;
 }
 
 async function getAuthorizedClient(businessId: string) {
@@ -167,6 +176,143 @@ export async function updateInventoryStatusAction(
   } catch {
     return { error: "Availability is temporarily unavailable." };
   }
+}
+
+export async function bulkImportPartnerInventoryAction(
+  businessId: string,
+  _previousState: InventoryBulkImportState,
+  formData: FormData,
+): Promise<InventoryBulkImportState> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose a CSV file to upload." };
+  }
+  if (file.size > 1_900_000) {
+    return { error: "CSV files must be smaller than 1.9 MB." };
+  }
+  if (!file.name.toLowerCase().endsWith(".csv")) {
+    return { error: "Upload a .csv file." };
+  }
+
+  let parsed: ReturnType<typeof parseCsv>;
+  try {
+    parsed = parseCsv(await file.text(), 500);
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "The CSV file is invalid.",
+    };
+  }
+  const missingHeaders = ["product_name", "strength"].filter(
+    (header) => !parsed.headers.includes(header),
+  );
+  if (missingHeaders.length > 0) {
+    return {
+      error: `CSV is missing required columns: ${missingHeaders.join(", ")}.`,
+    };
+  }
+
+  const rows: NonNullable<InventoryBulkImportState["rows"]> = [];
+  const validRecords: Array<Record<string, string | number | boolean | null>> =
+    [];
+  for (const row of parsed.rows) {
+    const fields = row.values;
+    const productName = fields.product_name ?? "";
+    const strength = fields.strength ?? "";
+    const manufacturer = fields.manufacturer ?? "";
+    const status = (fields.status || "available").toLowerCase();
+    const quantity = fields.quantity ?? "";
+    const publicVisible = parseCsvBoolean(fields.public_visible, true);
+    let rowError = "";
+
+    if (productName.length < 1 || productName.length > 240) {
+      rowError = "Product name must be 1–240 characters.";
+    } else if (strength.length < 1 || strength.length > 120) {
+      rowError = "Strength must be 1–120 characters.";
+    } else if (manufacturer.length > 200) {
+      rowError = "Manufacturer must be 200 characters or fewer.";
+    } else if (
+      !new Set(["available", "low_stock", "out_of_stock"]).has(status)
+    ) {
+      rowError = "Status must be available, low_stock or out_of_stock.";
+    } else if (quantity && !/^(0|[1-9][0-9]{0,6})$/.test(quantity)) {
+      rowError = "Quantity must be a whole number from 0 to 1,000,000.";
+    } else if (quantity && Number(quantity) > 1_000_000) {
+      rowError = "Quantity must be a whole number from 0 to 1,000,000.";
+    } else if (quantity === "0" && status !== "out_of_stock") {
+      rowError = "Zero quantity must be marked out_of_stock.";
+    } else if (publicVisible === null) {
+      rowError = "Public visibility must be true/false or yes/no.";
+    }
+
+    if (rowError) {
+      rows.push({ line: row.line, result: "error", message: rowError });
+      continue;
+    }
+
+    validRecords.push({
+      row_number: row.line,
+      product_name: productName,
+      strength,
+      manufacturer,
+      status,
+      quantity: quantity === "" ? null : Number(quantity),
+      public_visible: publicVisible,
+    });
+  }
+
+  if (validRecords.length > 0) {
+    try {
+      const context = await getAuthorizedClient(businessId);
+      if (!context) {
+        return {
+          error:
+            "You do not have permission to manage this pharmacy, clinic or nursing home inventory.",
+          rows,
+        };
+      }
+      const { data, error } = await context.supabase.rpc(
+        "partner_bulk_upsert_inventory",
+        { p_business_id: businessId, p_records: validRecords },
+      );
+      if (error || !Array.isArray(data)) {
+        return {
+          error:
+            "The inventory batch could not be imported. Confirm the database migration is applied and retry.",
+          rows,
+        };
+      }
+      for (const item of data as Array<{
+        row_number: number;
+        result: "imported" | "not_found" | "ambiguous" | "error";
+        message: string;
+      }>) {
+        rows.push({
+          line: item.row_number,
+          result: item.result,
+          message: item.message,
+        });
+      }
+      revalidatePath(`/partner/${businessId}`);
+      revalidatePath(`/partner/${businessId}/inventory`);
+      revalidatePath("/pharmacies");
+      revalidatePath("/medicines");
+      revalidatePath("/");
+    } catch {
+      return { error: "Inventory import is temporarily unavailable.", rows };
+    }
+  }
+
+  rows.sort((a, b) => a.line - b.line);
+  const importedCount = rows.filter((row) => row.result === "imported").length;
+  const notFoundCount = rows.filter(
+    (row) => row.result === "not_found" || row.result === "ambiguous",
+  ).length;
+  const errorCount = rows.filter((row) => row.result === "error").length;
+  return {
+    message: `${importedCount} inventory rows updated · ${notFoundCount} medicine matches need review · ${errorCount} rows need correction.`,
+    rows,
+  };
 }
 
 export async function submitPartnerMedicineAction(

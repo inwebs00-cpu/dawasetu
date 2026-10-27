@@ -49,6 +49,7 @@ const migrationPaths = [
   "supabase/migrations/20261015030000_distributor_inquiries.sql",
   "supabase/migrations/20261016010000_admin_payment_gateway_settings.sql",
   "supabase/migrations/20261016020000_first_login_password_change.sql",
+  "supabase/migrations/20261016030000_bulk_medicine_import_and_public_discovery.sql",
 ].map((path) => resolve(process.cwd(), path));
 
 describe("DawaSetu core schema migration", () => {
@@ -3350,5 +3351,260 @@ describe("DawaSetu core schema migration", () => {
       privilege_type: "EXECUTE",
     });
     expect(grants.rows.some((grant) => grant.grantee === "anon")).toBe(false);
+  });
+
+  it("lists approved public pharmacies without stock and exposes approved catalogue medicines", async () => {
+    const ownerId = randomUUID();
+    const businessId = randomUUID();
+    const medicineId = randomUUID();
+    const retailType = await database.query<{ id: string }>(
+      "select id from public.business_types where slug = 'retail_pharmacy'",
+    );
+    await database.query(
+      "insert into auth.users (id, raw_user_meta_data) values ($1, $2)",
+      [ownerId, { full_name: "Public directory partner" }],
+    );
+    const composition = await database.query<{ id: string }>(
+      "insert into public.compositions (name, status) values ('Directory test ingredient', 'approved') returning id",
+    );
+    const manufacturer = await database.query<{ id: string }>(
+      "insert into public.manufacturers (name, status) values ('Directory test labs', 'approved') returning id",
+    );
+    await database.query(
+      `insert into public.medicines
+        (id, product_name, composition_id, strength, manufacturer_id, medicine_type, status, reviewed_at)
+       values ($1, 'Directory Catalogue Medicine', $2, '10 mg', $3, 'tablet', 'approved', now())`,
+      [medicineId, composition.rows[0].id, manufacturer.rows[0].id],
+    );
+    await database.query(
+      `insert into public.businesses
+        (id, owner_user_id, business_type_id, business_name, slug, phone_e164, address_line1,
+         latitude, longitude, public_availability_enabled, status, reviewed_at)
+       values ($1, $2, $3, 'Directory Test Pharmacy', $4, '+910000000090', 'Market Road',
+         19.076, 72.8777, true, 'approved', now())`,
+      [
+        businessId,
+        ownerId,
+        retailType.rows[0].id,
+        `directory-${businessId.slice(0, 8)}`,
+      ],
+    );
+
+    await database.exec("set role anon");
+    const nearby = await database.query<{
+      business_id: string;
+      distance_km: number;
+    }>(
+      "select business_id, distance_km from public.list_public_businesses(19.076, 72.8777, 30)",
+    );
+    const catalogue = await database.query<{ medicine_id: string }>(
+      "select medicine_id from public.search_public_medicine_catalog('Directory Catalogue Medicine', 30, null)",
+    );
+    const availability = await database.query<{ medicine_id: string }>(
+      "select medicine_id from public.search_public_medicine('Directory Catalogue Medicine')",
+    );
+    await expect(
+      database.query("select count(*) from public.inventory"),
+    ).rejects.toThrow();
+    await database.exec("reset role");
+
+    expect(nearby.rows).toContainEqual({
+      business_id: businessId,
+      distance_km: 0,
+    });
+    expect(catalogue.rows).toEqual([{ medicine_id: medicineId }]);
+    expect(availability.rows).toHaveLength(0);
+  });
+
+  it("imports admin medicine rows with permission checks and per-row duplicate results", async () => {
+    const adminId = randomUUID();
+    const customerId = randomUUID();
+    await database.query(
+      "insert into auth.users (id, raw_user_meta_data) values ($1, $2), ($3, $4)",
+      [
+        adminId,
+        { full_name: "Bulk Medicine Manager" },
+        customerId,
+        { full_name: "Bulk Import Customer" },
+      ],
+    );
+    const role = await database.query<{ id: string }>(
+      "select id from public.roles where slug = 'medicine_manager' and business_id is null",
+    );
+    await database.query(
+      "insert into public.user_roles (user_id, role_id) values ($1, $2)",
+      [adminId, role.rows[0].id],
+    );
+    const productName = `Bulk Admin Medicine ${adminId.slice(0, 8)}`;
+    const records = [
+      {
+        row_number: 2,
+        product_name: productName,
+        brand_name: "Bulk Brand",
+        composition: "Bulk ingredient 25 mg",
+        strength: "25 mg",
+        manufacturer: "Bulk Admin Labs",
+        medicine_type: "tablet",
+        prescription_class: "unknown",
+        public_visibility: true,
+      },
+      {
+        row_number: 3,
+        product_name: productName,
+        brand_name: "Bulk Brand",
+        composition: "Bulk ingredient 25 mg",
+        strength: "25 mg",
+        manufacturer: "Bulk Admin Labs",
+        medicine_type: "tablet",
+        prescription_class: "unknown",
+        public_visibility: true,
+      },
+    ];
+
+    await database.exec("set role authenticated");
+    await database.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [customerId],
+    );
+    await expect(
+      database.query(
+        "select * from public.admin_bulk_import_medicines($1::jsonb)",
+        [JSON.stringify(records)],
+      ),
+    ).rejects.toThrow(/permission denied/i);
+    await database.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [adminId],
+    );
+    const results = await database.query<{
+      row_number: number;
+      medicine_id: string | null;
+      result: string;
+    }>(
+      "select row_number, medicine_id, result from public.admin_bulk_import_medicines($1::jsonb)",
+      [JSON.stringify(records)],
+    );
+    await database.exec("reset role");
+
+    expect(results.rows.map((row) => row.result)).toEqual([
+      "imported",
+      "duplicate",
+    ]);
+    expect(results.rows[0].row_number).toBe(2);
+    const status = await database.query<{ status: string }>(
+      "select status from public.medicines where id = $1",
+      [results.rows[0].medicine_id],
+    );
+    expect(status.rows[0].status).toBe("pending");
+  });
+
+  it("bulk-updates retail and care partner inventory while keeping distributors B2B-only", async () => {
+    const partnerId = randomUUID();
+    const distributorId = randomUUID();
+    const medicineId = randomUUID();
+    await database.query(
+      "insert into auth.users (id, raw_user_meta_data) values ($1, $2), ($3, $4)",
+      [
+        partnerId,
+        { full_name: "Bulk Inventory Partner" },
+        distributorId,
+        { full_name: "Bulk Inventory Distributor" },
+      ],
+    );
+    const businessTypes = await database.query<{ id: string; slug: string }>(
+      "select id, slug from public.business_types where slug in ('retail_pharmacy', 'clinic_pharmacy', 'nursing_home_pharmacy', 'distributor')",
+    );
+    const businessIds = new Map<string, string>();
+    for (const type of businessTypes.rows) {
+      const businessId = randomUUID();
+      businessIds.set(type.slug, businessId);
+      const ownerId = type.slug === "distributor" ? distributorId : partnerId;
+      await database.query(
+        `insert into public.businesses
+          (id, owner_user_id, business_type_id, business_name, slug, phone_e164, address_line1,
+           public_availability_enabled, status, reviewed_at)
+         values ($1, $2, $3, $4, $5, '+910000000091', 'Market Road', true, 'approved', now())`,
+        [
+          businessId,
+          ownerId,
+          type.id,
+          `Bulk ${type.slug}`,
+          `bulk-${type.slug.replaceAll("_", "-")}-${businessId.slice(0, 6)}`,
+        ],
+      );
+    }
+    const composition = await database.query<{ id: string }>(
+      "insert into public.compositions (name, status) values ('Bulk inventory ingredient', 'approved') returning id",
+    );
+    const manufacturer = await database.query<{ id: string }>(
+      "insert into public.manufacturers (name, status) values ('Bulk inventory labs', 'approved') returning id",
+    );
+    await database.query(
+      `insert into public.medicines
+        (id, product_name, composition_id, strength, manufacturer_id, medicine_type, status, reviewed_at)
+       values ($1, 'Bulk Inventory Product', $2, '5 mg', $3, 'capsule', 'approved', now())`,
+      [medicineId, composition.rows[0].id, manufacturer.rows[0].id],
+    );
+
+    await database.exec("set role authenticated");
+    await database.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [partnerId],
+    );
+    for (const businessSlug of [
+      "retail_pharmacy",
+      "clinic_pharmacy",
+      "nursing_home_pharmacy",
+    ]) {
+      const businessId = businessIds.get(businessSlug)!;
+      const result = await database.query<{ result: string }>(
+        "select result from public.partner_bulk_upsert_inventory($1, $2::jsonb)",
+        [
+          businessId,
+          JSON.stringify([
+            {
+              row_number: 2,
+              product_name: "Bulk Inventory Product",
+              strength: "5 mg",
+              manufacturer: "Bulk inventory labs",
+              status: "available",
+              quantity: 10,
+              public_visible: true,
+            },
+          ]),
+        ],
+      );
+      expect(result.rows).toEqual([{ result: "imported" }]);
+    }
+    await database.query(
+      "select set_config('request.jwt.claim.sub', $1, false)",
+      [distributorId],
+    );
+    await expect(
+      database.query(
+        "select * from public.partner_bulk_upsert_inventory($1, $2::jsonb)",
+        [
+          businessIds.get("distributor"),
+          JSON.stringify([
+            {
+              product_name: "Bulk Inventory Product",
+              strength: "5 mg",
+              status: "available",
+            },
+          ]),
+        ],
+      ),
+    ).rejects.toThrow(/pharmacy and care partners only/i);
+    await database.exec("reset role");
+
+    const publicResults = await database.query<{ business_name: string }>(
+      "select business_name from public.search_public_medicine('Bulk Inventory Product')",
+    );
+    expect(publicResults.rows).toHaveLength(3);
+    expect(
+      publicResults.rows.every(
+        (row) => row.business_name !== "Bulk distributor",
+      ),
+    ).toBe(true);
   });
 });
