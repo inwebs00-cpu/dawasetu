@@ -40,7 +40,7 @@ revoke all on public.homepage_banners from anon, authenticated;
 insert into public.homepage_banners (title, image_path, alt_text, target_url, display_order, is_active)
 values (
   'DawaSetu connects people to pharmacies',
-  '00000000-0000-4000-8000-000000000001.jpg',
+  '/banners/dawasetu-connect-banner.jpeg',
   'DawaSetu helps customers find nearby pharmacy availability and helps pharmacy owners reach local customers.',
   '/pharmacies',
   0,
