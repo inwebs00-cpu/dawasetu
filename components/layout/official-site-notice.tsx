@@ -60,7 +60,7 @@ export function OfficialSiteNotice() {
           <div className="mt-5 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-5">
             <a
               href="https://dawasetu.online"
-              className="break-all text-2xl font-black tracking-tight text-emerald-800 underline decoration-emerald-300 decoration-2 underline-offset-4 sm:text-3xl"
+              className="text-2xl font-black tracking-tight break-all text-emerald-800 underline decoration-emerald-300 decoration-2 underline-offset-4 sm:text-3xl"
             >
               dawasetu.online
             </a>
