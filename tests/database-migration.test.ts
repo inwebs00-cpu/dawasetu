@@ -51,6 +51,7 @@ const migrationPaths = [
   "supabase/migrations/20261016020000_first_login_password_change.sql",
   "supabase/migrations/20261016030000_bulk_medicine_import_and_public_discovery.sql",
 "supabase/migrations/20261027010000_homepage_banner_management.sql",
+  "supabase/migrations/20261027020000_seed_additional_homepage_banners.sql",
 ].map((path) => resolve(process.cwd(), path));
 
 describe("DawaSetu core schema migration", () => {
@@ -3636,4 +3637,36 @@ describe("DawaSetu core schema migration", () => {
       ),
     ).toBe(true);
   });
+  it("seeds the pharmacy growth and Lokpali Medicos homepage banners in order", async () => {
+    const banners = await database.query<{
+      title: string;
+      image_path: string;
+      display_order: number;
+      is_active: boolean;
+    }>(
+      `select title, image_path, display_order, is_active
+       from public.homepage_banners
+       where image_path in (
+         '/banners/dawasetu-pharmacy-growth.jpeg',
+         '/banners/lokpali-medicos.jpeg'
+       )
+       order by display_order`,
+    );
+
+    expect(banners.rows).toEqual([
+      {
+        title: "Join DawaSetu — Grow Your Pharmacy Business",
+        image_path: "/banners/dawasetu-pharmacy-growth.jpeg",
+        display_order: 1,
+        is_active: true,
+      },
+      {
+        title: "Lokpali Medicos — Your Trusted Local Pharmacy",
+        image_path: "/banners/lokpali-medicos.jpeg",
+        display_order: 2,
+        is_active: true,
+      },
+    ]);
+  });
+
 });
