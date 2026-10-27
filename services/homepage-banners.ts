@@ -28,7 +28,7 @@ const defaultBanner: HomepageBanner = {
   id: "dawasetu-launch-banner",
   title: "DawaSetu connects people to pharmacies",
   image_url: homepageBannerImageUrl(
-    "00000000-0000-4000-8000-000000000001.jpg",
+    "/banners/dawasetu-connect-banner.jpeg",
   ),
   alt_text:
     "DawaSetu helps customers find nearby pharmacy availability and helps pharmacy owners reach local customers.",
