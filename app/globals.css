@@ -60,3 +60,43 @@ textarea {
   background: rgb(15 31 34 / 48%);
   backdrop-filter: blur(2px);
 }
+
+.official-domain-notice {
+  animation: official-notice-enter 240ms ease-out both;
+}
+
+.official-domain-notice[data-closing="true"] {
+  animation: official-notice-exit 240ms ease-in both;
+}
+
+.official-notice-hindi {
+  font-family:
+    "Noto Serif Devanagari", "Noto Serif", "Kohinoor Devanagari", "Nirmala UI",
+    serif;
+}
+
+@keyframes official-notice-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes official-notice-exit {
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .official-domain-notice,
+  .official-domain-notice[data-closing="true"] {
+    animation: none;
+  }
+}
