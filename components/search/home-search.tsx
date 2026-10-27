@@ -12,9 +12,12 @@ import {
 import { useState, useTransition, type FormEvent } from "react";
 
 import { searchNearbyAction } from "@/app/medicines/actions";
+import { findNearbyPublicBusinessesAction } from "@/app/pharmacies/actions";
+import { BusinessDirectoryCard } from "@/components/business/business-directory-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MedicineCatalogCard } from "@/components/search/medicine-catalog-card";
+import type { DirectoryResult } from "@/services/business-directory";
 import type {
   PublicMedicineSearchRow,
   SearchResult,
@@ -75,6 +78,8 @@ export function HomeSearch() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [nearbyResult, setNearbyResult] = useState<SearchResult | null>(null);
+  const [nearbyBusinesses, setNearbyBusinesses] =
+    useState<DirectoryResult | null>(null);
   const [locationMessage, setLocationMessage] = useState("");
   const [locating, setLocating] = useState(false);
   const [showAllMatches, setShowAllMatches] = useState(false);
@@ -85,12 +90,14 @@ export function HomeSearch() {
     const normalizedQuery = query.trim();
     if (!normalizedQuery) return;
     setNearbyResult(null);
+    setNearbyBusinesses(null);
     setLocationMessage("");
     router.push(`/medicines?q=${encodeURIComponent(normalizedQuery)}`);
   }
 
   function searchNearby() {
     setNearbyResult(null);
+    setNearbyBusinesses(null);
     setShowAllMatches(false);
     if (!navigator.geolocation) {
       setLocationMessage(
@@ -107,8 +114,29 @@ export function HomeSearch() {
         setLocationMessage("Searching nearby partner reports…");
         startTransition(async () => {
           try {
+            const searchTerm = query.trim();
+            if (!searchTerm) {
+              const response = await findNearbyPublicBusinessesAction(
+                coords.latitude,
+                coords.longitude,
+              );
+              setNearbyBusinesses(response);
+              if (response.status !== "ready") {
+                setLocationMessage(
+                  response.status === "unconfigured"
+                    ? "Nearby search is not connected in this deployment yet."
+                    : "Nearby partners are temporarily unavailable. Please try again.",
+                );
+              } else {
+                setLocationMessage(
+                  "Approved public partners are listed below, closest first when coordinates are available. Stock appears only when a partner reports it. Your precise location is used for this search and is not saved.",
+                );
+              }
+              return;
+            }
+
             const response = await searchNearbyAction(
-              query.trim(),
+              searchTerm,
               coords.latitude,
               coords.longitude,
               null,
@@ -184,6 +212,7 @@ export function HomeSearch() {
               onChange={(event) => {
                 setQuery(event.target.value);
                 setNearbyResult(null);
+                setNearbyBusinesses(null);
                 setLocationMessage("");
               }}
               placeholder="Search a medicine…"
@@ -202,7 +231,7 @@ export function HomeSearch() {
           type="button"
           onClick={searchNearby}
           disabled={locating || pending}
-          aria-label="Use my location for nearby medicine availability"
+          aria-label="Find nearby pharmacies and medicine availability"
           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-wait disabled:opacity-70 sm:min-w-[132px] sm:px-3"
         >
           {locating || pending ? (
@@ -308,6 +337,42 @@ export function HomeSearch() {
             <p className="rounded-xl bg-slate-50 px-3 py-3 text-xs leading-5 text-slate-600">
               No approved public partner has reported a matching medicine yet.
               Try another search or check again later.
+            </p>
+          )}
+        </section>
+      )}
+
+      {nearbyBusinesses?.status === "ready" && (
+        <section
+          aria-label="Nearby pharmacies and care partners"
+          className="mt-3 border-t border-slate-100 px-1 pt-3"
+        >
+          <div className="mb-2 flex items-center justify-between gap-3 px-1">
+            <h2 className="text-sm font-bold text-slate-900">
+              {nearbyBusinesses.rows.length > 0
+                ? "Nearby pharmacies and care partners"
+                : "No public partner profiles yet"}
+            </h2>
+            <Link
+              href="/pharmacies"
+              className="min-h-9 rounded-lg px-2 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+            >
+              View directory
+            </Link>
+          </div>
+          {nearbyBusinesses.rows.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {nearbyBusinesses.rows.slice(0, 4).map((business) => (
+                <BusinessDirectoryCard
+                  key={business.business_id}
+                  business={business}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-xl bg-slate-50 px-3 py-3 text-xs leading-5 text-slate-600">
+              There are no approved public pharmacy or care partner profiles to
+              show yet. You can browse the full directory or try again later.
             </p>
           )}
         </section>
