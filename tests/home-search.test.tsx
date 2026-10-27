@@ -1,12 +1,17 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { routerPush, searchNearbyAction } = vi.hoisted(() => ({
-  routerPush: vi.fn(),
-  searchNearbyAction: vi.fn(),
-}));
+const { routerPush, searchNearbyAction, findNearbyPublicBusinessesAction } =
+  vi.hoisted(() => ({
+    routerPush: vi.fn(),
+    searchNearbyAction: vi.fn(),
+    findNearbyPublicBusinessesAction: vi.fn(),
+  }));
 
 vi.mock("@/app/medicines/actions", () => ({ searchNearbyAction }));
+vi.mock("@/app/pharmacies/actions", () => ({
+  findNearbyPublicBusinessesAction,
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: routerPush }) }));
 
 import { HomeSearch } from "@/components/search/home-search";
@@ -15,6 +20,7 @@ describe("HomeSearch", () => {
   beforeEach(() => {
     routerPush.mockReset();
     searchNearbyAction.mockReset();
+    findNearbyPublicBusinessesAction.mockReset();
   });
 
   it("opens database search results for a medicine query", () => {
@@ -29,8 +35,27 @@ describe("HomeSearch", () => {
     );
   });
 
-  it("runs a location-only search from the homepage without saving coordinates", async () => {
-    searchNearbyAction.mockResolvedValue({ status: "ready", rows: [] });
+  it("shows nearby public pharmacies when location is searched without a medicine", async () => {
+    findNearbyPublicBusinessesAction.mockResolvedValue({
+      status: "ready",
+      rows: [
+        {
+          business_id: "11111111-1111-4111-8111-111111111111",
+          business_name: "LOKPALI MEDICO'S",
+          business_slug: "lokpali-medicos",
+          business_type: "Retail Pharmacy",
+          address_line1: "Main Road",
+          address_line2: null,
+          postal_code: "788819",
+          phone_e164: "+919957712819",
+          whatsapp_e164: null,
+          latitude: 25.17,
+          longitude: 93.02,
+          last_updated_at: "2026-10-27T00:00:00Z",
+          distance_km: 2.3,
+        },
+      ],
+    });
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
       success({
         coords: {
@@ -47,20 +72,20 @@ describe("HomeSearch", () => {
     render(<HomeSearch />);
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Use my location for nearby medicine availability",
+        name: "Find nearby pharmacies and medicine availability",
       }),
     );
 
     await waitFor(() =>
-      expect(searchNearbyAction).toHaveBeenCalledWith(
-        "",
+      expect(findNearbyPublicBusinessesAction).toHaveBeenCalledWith(
         19.076,
         72.8777,
-        null,
       ),
     );
-    expect(await screen.findByText("No current matches nearby")).toBeTruthy();
+    expect(await screen.findByText("LOKPALI MEDICO'S")).toBeTruthy();
+    expect(await screen.findByText("2.3 km away")).toBeTruthy();
     expect(screen.getByText(/Your precise location is used/)).toBeTruthy();
+    expect(searchNearbyAction).not.toHaveBeenCalled();
     expect(routerPush).not.toHaveBeenCalled();
   });
 
@@ -84,7 +109,7 @@ describe("HomeSearch", () => {
     render(<HomeSearch />);
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Use my location for nearby medicine availability",
+        name: "Find nearby pharmacies and medicine availability",
       }),
     );
 
