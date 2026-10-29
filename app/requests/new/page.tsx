@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/services/medicine-search";
+import { getActiveLocationHierarchy } from "@/services/location-directory";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Request a medicine" };
@@ -55,12 +56,7 @@ export default async function NewMedicineRequestPage({
   const medicineName = (params.name ?? "").slice(0, 240);
   const composition = (params.composition ?? "").slice(0, 240);
   const strength = (params.strength ?? "").slice(0, 120);
-  const { data: areas } = await supabase
-    .from("areas")
-    .select("id, name, postal_code")
-    .eq("is_active", true)
-    .order("name")
-    .limit(500);
+  const locationHierarchy = await getActiveLocationHierarchy(supabase);
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-5 sm:px-8 sm:py-8">
@@ -88,11 +84,12 @@ export default async function NewMedicineRequestPage({
               medicineName={medicineName}
               composition={composition}
               strength={strength}
-              areas={areas ?? []}
+              states={locationHierarchy.states}
+              districts={locationHierarchy.districts}
             />
           </CardContent>
         </Card>
-        {(areas ?? []).length === 0 && (
+        {locationHierarchy.districts.length === 0 && (
           <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950">
             DawaSetu area data has not been configured. Contact the network
             administrator to enable location-based requests.
