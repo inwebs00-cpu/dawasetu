@@ -19,12 +19,26 @@ interface AreaRow {
 
 export default async function AdminLocationsPage() {
   const { supabase } = await requirePlatformPermission("partners.manage");
-  const { data, error } = await supabase
-    .from("areas")
-    .select("id, name, postal_code")
-    .eq("is_active", true)
-    .order("name")
-    .limit(200);
+  const [
+    { data, error, count: areaCount },
+    { count: districtCount },
+    { count: stateCount },
+  ] = await Promise.all([
+    supabase
+      .from("areas")
+      .select("id, name, postal_code", { count: "exact" })
+      .eq("is_active", true)
+      .order("name")
+      .limit(200),
+    supabase
+      .from("districts")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true),
+    supabase
+      .from("states")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true),
+  ]);
   const areas = (data ?? []) as AreaRow[];
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-5 sm:px-8 sm:py-8">
@@ -50,6 +64,11 @@ export default async function AdminLocationsPage() {
         </div>
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
           <h2 className="font-semibold text-slate-950">Active areas</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            {areaCount ?? areas.length} areas across {districtCount ?? 0}{" "}
+            districts and {stateCount ?? 0} states. This page previews up to
+            200; partner forms search the full location list.
+          </p>
           {error ? (
             <p role="alert" className="mt-3 text-sm text-rose-800">
               Area list is temporarily unavailable.
