@@ -3,28 +3,29 @@
 import { useActionState } from "react";
 
 import { createMedicineRequestAction } from "@/app/requests/actions";
+import { LocationPicker } from "@/components/forms/location-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type {
+  LocationDistrictOption,
+  LocationStateOption,
+} from "@/services/location-directory";
 import type { AuthActionState } from "@/types/auth";
-
-interface AreaOption {
-  id: string;
-  name: string;
-  postal_code: string | null;
-}
 
 export function MedicineRequestForm({
   medicineId,
   medicineName,
   composition,
   strength,
-  areas,
+  states,
+  districts,
 }: {
   medicineId: string;
   medicineName: string;
   composition: string;
   strength: string;
-  areas: AreaOption[];
+  states: LocationStateOption[];
+  districts: LocationDistrictOption[];
 }) {
   const [state, formAction, pending] = useActionState<
     AuthActionState,
@@ -75,24 +76,14 @@ export function MedicineRequestForm({
           required
         />
       </label>
-      {areas.length > 0 ? (
-        <label className="grid gap-2 text-sm font-medium text-slate-800">
-          Your nearby area
-          <select
-            name="area_id"
-            required
-            defaultValue=""
-            className="h-11 rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-900 outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15"
-          >
-            <option value="">Choose your area</option>
-            {areas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.name}
-                {area.postal_code ? ` · ${area.postal_code}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+      {districts.length > 0 ? (
+        <LocationPicker
+          states={states}
+          districts={districts}
+          label="Your nearby location"
+          areaRequired
+          allowManual={false}
+        />
       ) : (
         <p className="rounded-xl bg-amber-50 p-3 text-sm leading-5 text-amber-950 sm:col-span-2">
           Area matching is not configured yet, so DawaSetu cannot route requests
@@ -123,7 +114,7 @@ export function MedicineRequestForm({
         </p>
       )}
       <div className="sm:col-span-2">
-        <Button type="submit" disabled={pending || areas.length === 0}>
+        <Button type="submit" disabled={pending || districts.length === 0}>
           {pending ? "Sending request…" : "Send medicine request"}
         </Button>
       </div>
