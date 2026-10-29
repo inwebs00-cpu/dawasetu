@@ -37,7 +37,7 @@ export function NearbyBusinessFinder({
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         setLocating(false);
-        setMessage("Finding approved pharmacies and care partners nearby…");
+        setMessage("Finding approved healthcare facilities nearby…");
         startTransition(async () => {
           try {
             const response = await findNearbyPublicBusinessesAction(
@@ -99,7 +99,7 @@ export function NearbyBusinessFinder({
             id="partner-directory-heading"
             className="mt-1 text-xl font-semibold tracking-tight text-slate-950"
           >
-            Pharmacies and care partners
+            Nearby pharmacies and healthcare facilities
           </h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
             Approved public profiles appear here even when no medicine stock is
@@ -142,7 +142,7 @@ export function NearbyBusinessFinder({
       ) : rows.length === 0 ? (
         <EmptyState
           title="No public partner profiles yet"
-          description="Approved pharmacies, clinic pharmacies and nursing home pharmacies appear after public availability is enabled."
+          description="Approved pharmacies, hospitals, nursing homes, diagnostic centres and medical laboratories appear after public availability is enabled."
         />
       ) : (
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
