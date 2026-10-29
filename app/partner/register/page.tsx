@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/services/medicine-search";
+import { getActiveLocationHierarchy } from "@/services/location-directory";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Register a partner business" };
@@ -15,12 +16,6 @@ export const metadata: Metadata = { title: "Register a partner business" };
 interface BusinessTypeOption {
   id: string;
   name: string;
-}
-
-interface AreaOption {
-  id: string;
-  name: string;
-  postal_code: string | null;
 }
 
 export default async function PartnerRegisterPage() {
@@ -45,19 +40,14 @@ export default async function PartnerRegisterPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const [{ data }, { data: areas }] = await Promise.all([
+  const [{ data }, locationHierarchy] = await Promise.all([
     supabase
       .from("business_types")
       .select("id, name")
       .eq("is_active", true)
       .eq("is_distributor", false)
       .order("name"),
-    supabase
-      .from("areas")
-      .select("id, name, postal_code")
-      .eq("is_active", true)
-      .order("name")
-      .limit(500),
+    getActiveLocationHierarchy(supabase),
   ]);
 
   return (
@@ -76,10 +66,11 @@ export default async function PartnerRegisterPage() {
           Register a local business
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-          Retail pharmacies, clinic pharmacies and nursing-home pharmacies can
-          submit their details for review. Public visibility and inventory
-          access are enabled after approval. Upload required verification
-          documents from the business dashboard after submitting the form.
+          Pharmacies, clinics, hospitals, nursing homes, diagnostic centres and
+          medical laboratories can submit their details for review. Public
+          visibility is enabled only after approval and the business turns on
+          public availability. Upload required verification documents from the
+          business dashboard after submitting the form.
         </p>
         <Card className="mt-7">
           <CardHeader>
@@ -88,7 +79,8 @@ export default async function PartnerRegisterPage() {
           <CardContent>
             <BusinessRegistrationForm
               businessTypes={(data ?? []) as BusinessTypeOption[]}
-              areas={(areas ?? []) as AreaOption[]}
+              states={locationHierarchy.states}
+              districts={locationHierarchy.districts}
             />
           </CardContent>
         </Card>

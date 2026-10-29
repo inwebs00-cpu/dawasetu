@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { requireBusinessPermission } from "@/lib/auth/authorization";
+import { getActiveLocationHierarchy } from "@/services/location-directory";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Business profile" };
@@ -32,12 +33,6 @@ interface BusinessProfile {
   status: string;
 }
 
-interface AreaOption {
-  id: string;
-  name: string;
-  postal_code: string | null;
-}
-
 export default async function PartnerProfilePage({
   params,
 }: {
@@ -48,21 +43,37 @@ export default async function PartnerProfilePage({
     businessId,
     "partners.manage",
   );
-  const [{ data: business }, { data: areas }] = await Promise.all([
-    supabase
-      .from("businesses")
-      .select(
-        "business_name, phone_e164, whatsapp_e164, email, address_line1, address_line2, area_id, postal_code, latitude, longitude, description, opening_hours, google_business_url, public_availability_enabled, status",
+  const { data: business } = await supabase
+    .from("businesses")
+    .select(
+      "business_name, phone_e164, whatsapp_e164, email, address_line1, address_line2, area_id, postal_code, latitude, longitude, description, opening_hours, google_business_url, public_availability_enabled, status",
+    )
+    .eq("id", businessId)
+    .maybeSingle();
+  const locationHierarchy = await getActiveLocationHierarchy(supabase);
+  const { data: area } = business?.area_id
+    ? await supabase
+        .from("areas")
+        .select("id, name, postal_code, district_id")
+        .eq("id", business.area_id)
+        .eq("is_active", true)
+        .maybeSingle()
+    : { data: null };
+  const currentDistrict = area
+    ? locationHierarchy.districts.find(
+        (district) => district.id === area.district_id,
       )
-      .eq("id", businessId)
-      .maybeSingle(),
-    supabase
-      .from("areas")
-      .select("id, name, postal_code")
-      .eq("is_active", true)
-      .order("name")
-      .limit(500),
-  ]);
+    : null;
+  const initialArea =
+    area && currentDistrict
+      ? {
+          id: area.id,
+          name: area.name,
+          postal_code: area.postal_code,
+          district_id: area.district_id,
+          state_id: currentDistrict.state_id,
+        }
+      : null;
 
   if (!business)
     return (
@@ -110,7 +121,9 @@ export default async function PartnerProfilePage({
             <BusinessProfileForm
               businessId={businessId}
               business={business as BusinessProfile}
-              areas={(areas ?? []) as AreaOption[]}
+              states={locationHierarchy.states}
+              districts={locationHierarchy.districts}
+              initialArea={initialArea}
             />
           </CardContent>
         </Card>

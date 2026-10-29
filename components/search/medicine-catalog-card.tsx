@@ -9,8 +9,10 @@ import type { PublicMedicineCatalogRow } from "@/services/medicine-search";
 
 export function MedicineCatalogCard({
   medicine,
+  availabilityUnavailable = false,
 }: {
   medicine: PublicMedicineCatalogRow;
+  availabilityUnavailable?: boolean;
 }) {
   const requestParams = new URLSearchParams({
     medicine_id: medicine.medicine_id,
@@ -38,11 +40,23 @@ export function MedicineCatalogCard({
               <p className="mt-1 text-sm text-slate-600">{medicine.strength}</p>
             </div>
           </div>
-          <StatusBadge status="No public stock reported" />
+          <StatusBadge
+            status={
+              availabilityUnavailable
+                ? "Live stock unavailable"
+                : "No public stock reported"
+            }
+          />
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-1.5 text-sm text-slate-600">
+          <p>
+            <span className="font-medium text-slate-800">
+              Regulatory schedule:
+            </span>{" "}
+            Not verified
+          </p>
           {medicine.composition && (
             <p>
               <span className="font-medium text-slate-800">Composition:</span>{" "}
@@ -65,9 +79,9 @@ export function MedicineCatalogCard({
           )}
         </div>
         <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950">
-          This approved medicine is in the catalogue, but no partner has
-          reported public stock for this search. Availability may be unreported
-          or out of date.
+          {availabilityUnavailable
+            ? "This medicine is in the catalogue, but live partner availability could not be checked. Contact a pharmacy directly to confirm stock. Confirm the current pack label and prescription requirements with a pharmacist; this catalogue does not verify Schedule H, H1 or NRx status."
+            : "This approved medicine is in the catalogue, but no partner has reported public stock for this search. Availability may be unreported or out of date. Confirm the current pack label and prescription requirements with a pharmacist; this catalogue does not verify Schedule H, H1 or NRx status."}
         </p>
         <div className="flex flex-wrap gap-2">
           <form action={saveMyMedicineAction}>

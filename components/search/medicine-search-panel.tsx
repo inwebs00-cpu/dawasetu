@@ -215,14 +215,16 @@ export function MedicineSearchPanel({
         <section className="grid gap-4">
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
             <h2 className="font-semibold text-amber-950">
-              {hasNearbySearch
+              {result.availabilityUnavailable
+                ? "Live pharmacy availability could not be checked"
+                : hasNearbySearch
                 ? "Medicine found, but no nearby stock is reported"
                 : "Medicine found in the catalogue"}
             </h2>
             <p className="mt-1 text-sm leading-6 text-amber-900">
-              Approved medicine details are available below. No partner has
-              reported public availability for this search yet. You can ask
-              nearby partners to check.
+              {result.availabilityUnavailable
+                ? "Catalogue details are shown below. Current pharmacy stock could not be loaded, so contact a pharmacy directly to confirm availability."
+                : "Approved medicine details are available below. No partner has reported public availability for this search yet. You can ask nearby partners to check."}
             </p>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
@@ -230,6 +232,7 @@ export function MedicineSearchPanel({
               <MedicineCatalogCard
                 key={medicine.medicine_id}
                 medicine={medicine}
+                availabilityUnavailable={result.availabilityUnavailable}
               />
             ))}
           </div>

@@ -121,8 +121,7 @@ export async function registerBusinessAction(
       .maybeSingle();
     if (typeError || !type || type.is_distributor) {
       return {
-        error:
-          "Choose a current pharmacy, clinic, or nursing-home business type.",
+        error: "Choose an active healthcare business type.",
       };
     }
 

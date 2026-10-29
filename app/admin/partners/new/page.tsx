@@ -5,6 +5,7 @@ import { BusinessForm } from "@/components/admin/business-form";
 import { Brand } from "@/components/brand/brand";
 import { Button } from "@/components/ui/button";
 import { requirePlatformPermission } from "@/lib/auth/authorization";
+import { getActiveLocationHierarchy } from "@/services/location-directory";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Add a partner business" };
@@ -13,26 +14,15 @@ interface BusinessTypeOption {
   id: string;
   name: string;
 }
-interface AreaOption {
-  id: string;
-  name: string;
-  postal_code: string | null;
-}
-
 export default async function NewAdminBusinessPage() {
   const { supabase } = await requirePlatformPermission("partners.manage");
-  const [{ data: types }, { data: areas }] = await Promise.all([
+  const [{ data: types }, locationHierarchy] = await Promise.all([
     supabase
       .from("business_types")
       .select("id, name")
       .eq("is_active", true)
       .order("name"),
-    supabase
-      .from("areas")
-      .select("id, name, postal_code")
-      .eq("is_active", true)
-      .order("name")
-      .limit(500),
+    getActiveLocationHierarchy(supabase),
   ]);
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-5 sm:px-8 sm:py-8">
@@ -52,7 +42,8 @@ export default async function NewAdminBusinessPage() {
         <div className="mt-6">
           <BusinessForm
             types={(types ?? []) as BusinessTypeOption[]}
-            areas={(areas ?? []) as AreaOption[]}
+            states={locationHierarchy.states}
+            districts={locationHierarchy.districts}
           />
         </div>
       </div>

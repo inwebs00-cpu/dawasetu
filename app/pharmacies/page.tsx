@@ -8,19 +8,24 @@ import { listPublicBusinesses } from "@/services/business-directory";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Nearby pharmacies and clinics",
+  title: "Nearby Pharmacies, Hospitals and Diagnostic Centres",
   description:
-    "Find approved pharmacies, clinic pharmacies and nursing home pharmacies near you on DawaSetu.",
+    "Find approved pharmacies, hospitals, nursing homes, diagnostic centres and medical laboratories near you on DawaSetu.",
   keywords: [
     "nearby pharmacies India",
+    "nearby hospitals India",
+    "diagnostic centres near me",
+    "medical laboratories near me",
+    "nursing homes near me",
     "pharmacy medicine availability",
-    "find local pharmacy",
-    "approved pharmacy directory",
+    "find nearby healthcare facilities",
+    "approved healthcare directory",
   ],
   alternates: { canonical: "/pharmacies" },
   openGraph: {
-    title: "Nearby Pharmacies | DawaSetu",
-    description: "Browse approved local pharmacies and care partners.",
+    title: "Nearby Healthcare Facilities | DawaSetu",
+    description:
+      "Browse approved local pharmacies, hospitals, nursing homes and diagnostic facilities.",
     url: "/pharmacies",
     type: "website",
   },
@@ -47,12 +52,12 @@ export default async function PharmaciesPage() {
             DawaSetu network
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
-            Pharmacies and care partners
+            Pharmacies and nearby healthcare facilities
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            Find approved pharmacies, clinic pharmacies and nursing home
-            pharmacies. Use your location to sort public partner profiles by
-            distance.
+            Find approved pharmacies, hospitals, nursing homes, diagnostic
+            centres and medical laboratories. Use your location to sort public
+            profiles by distance.
           </p>
         </section>
         <NearbyBusinessFinder initialResult={directory} />

@@ -63,6 +63,7 @@ export type SearchResult =
       status: "ready";
       rows: PublicMedicineSearchRow[];
       catalogRows?: PublicMedicineCatalogRow[];
+      availabilityUnavailable?: boolean;
     }
   | { status: "unconfigured" }
   | { status: "error" };
@@ -136,9 +137,11 @@ export async function searchPublicMedicines(
       p_limit: 30,
       p_category_slug: categorySlug,
     });
-    if (error || !Array.isArray(data)) return { status: "error" };
-    const rows = data as PublicMedicineSearchRow[];
-    if (normalizedQuery.length >= 2) {
+    const availabilityUnavailable = Boolean(error || !Array.isArray(data));
+    const rows = availabilityUnavailable
+      ? []
+      : (data as PublicMedicineSearchRow[]);
+    if (!availabilityUnavailable && normalizedQuery.length >= 2) {
       await recordPublicMedicineSearch(rows.map((row) => row.medicine_id));
       try {
         const {
@@ -155,7 +158,7 @@ export async function searchPublicMedicines(
     }
     let catalogRows: PublicMedicineCatalogRow[] = [];
     if (
-      rows.length === 0 &&
+      (availabilityUnavailable || rows.length === 0) &&
       (normalizedQuery.length >= 2 || categorySlug !== null)
     ) {
       const { data: catalogData, error: catalogError } = await rpcClient.rpc(
@@ -167,11 +170,12 @@ export async function searchPublicMedicines(
         },
       );
       if (catalogError || !Array.isArray(catalogData)) {
-        return { status: "error" };
+        if (availabilityUnavailable) return { status: "error" };
+      } else {
+        catalogRows = catalogData as PublicMedicineCatalogRow[];
       }
-      catalogRows = catalogData as PublicMedicineCatalogRow[];
     }
-    return { status: "ready", rows, catalogRows };
+    return { status: "ready", rows, catalogRows, availabilityUnavailable };
   } catch {
     return { status: "error" };
   }
