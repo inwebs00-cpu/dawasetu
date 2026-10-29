@@ -3,20 +3,19 @@
 import { useActionState } from "react";
 
 import { createBusinessAction } from "@/app/admin/partners/new/actions";
+import { LocationPicker } from "@/components/forms/location-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type {
+  LocationDistrictOption,
+  LocationStateOption,
+} from "@/services/location-directory";
 import type { AuthActionState } from "@/types/auth";
 
 interface Option {
   id: string;
   name: string;
 }
-interface AreaOption {
-  id: string;
-  name: string;
-  postal_code: string | null;
-}
-
 function Field({
   label,
   name,
@@ -46,10 +45,12 @@ function Field({
 
 export function BusinessForm({
   types,
-  areas,
+  states,
+  districts,
 }: {
   types: Option[];
-  areas: AreaOption[];
+  states: LocationStateOption[];
+  districts: LocationDistrictOption[];
 }) {
   const [state, formAction, pending] = useActionState<
     AuthActionState,
@@ -129,25 +130,11 @@ export function BusinessForm({
         maxLength={240}
       />
       <Field label="Address details" name="address_line2" maxLength={240} />
-      {areas.length > 0 && (
-        <label className="grid gap-2 text-sm font-medium text-slate-800">
-          Mapped area
-          <select
-            name="area_id"
-            defaultValue=""
-            className="h-11 rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-900"
-          >
-            <option value="">Choose an area (optional)</option>
-            {areas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.name}
-                {area.postal_code ? ` · ${area.postal_code}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <Field label="PIN code" name="postal_code" maxLength={6} />
+      <LocationPicker
+        states={states}
+        districts={districts}
+        label="State, district, area and PIN code"
+      />
       <Field label="Latitude (optional)" name="latitude" type="number" />
       <Field label="Longitude (optional)" name="longitude" type="number" />
       <label className="grid gap-2 text-sm font-medium text-slate-800 sm:col-span-2">
