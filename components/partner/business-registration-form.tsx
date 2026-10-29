@@ -4,18 +4,17 @@ import { useActionState } from "react";
 
 import { registerBusinessAction } from "@/app/partner/register/actions";
 import { Button } from "@/components/ui/button";
+import { LocationPicker } from "@/components/forms/location-picker";
 import { Input } from "@/components/ui/input";
+import type {
+  LocationDistrictOption,
+  LocationStateOption,
+} from "@/services/location-directory";
 import type { AuthActionState } from "@/types/auth";
 
 interface BusinessTypeOption {
   id: string;
   name: string;
-}
-
-interface AreaOption {
-  id: string;
-  name: string;
-  postal_code: string | null;
 }
 
 function Field({
@@ -62,10 +61,12 @@ function Field({
 
 export function BusinessRegistrationForm({
   businessTypes,
-  areas,
+  states,
+  districts,
 }: {
   businessTypes: BusinessTypeOption[];
-  areas: AreaOption[];
+  states: LocationStateOption[];
+  districts: LocationDistrictOption[];
 }) {
   const [state, action, pending] = useActionState<AuthActionState, FormData>(
     registerBusinessAction,
@@ -162,52 +163,10 @@ export function BusinessRegistrationForm({
             autoComplete="street-address"
           />
         </div>
-        {areas.length > 0 ? (
-          <label
-            htmlFor="business-area-id"
-            className="grid gap-2 text-sm font-medium text-slate-800"
-          >
-            Area / locality
-            <select
-              id="business-area-id"
-              name="area_id"
-              className="h-11 rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-900 outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15"
-            >
-              <option value="">Choose an area (optional)</option>
-              {areas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.name}
-                  {area.postal_code ? ` · ${area.postal_code}` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <Field
-            id="business-area"
-            name="area"
-            label="Area / locality"
-            maxLength={100}
-          />
-        )}
-        <Field
-          id="business-district"
-          name="district"
-          label="District"
-          maxLength={100}
-        />
-        <Field
-          id="business-state"
-          name="state"
-          label="State / Union Territory"
-          maxLength={100}
-        />
-        <Field
-          id="business-pin"
-          name="postal_code"
-          label="PIN code"
-          maxLength={6}
-          inputMode="numeric"
+        <LocationPicker
+          states={states}
+          districts={districts}
+          label="State, district, area and PIN code"
         />
         <Field
           id="business-latitude"
@@ -240,7 +199,7 @@ export function BusinessRegistrationForm({
         Your business will remain pending until reviewed. Public availability
         starts off and distributor inventory is not part of this registration.
       </div>
-      {areas.length === 0 && (
+      {districts.length === 0 && (
         <p className="rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
           Area matching is not configured yet. You can still register, but
           location-based medicine requests will begin matching after your area

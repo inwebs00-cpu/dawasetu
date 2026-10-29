@@ -3,8 +3,16 @@
 import { useActionState } from "react";
 
 import { updateBusinessProfileAction } from "@/app/partner/[businessId]/profile/actions";
+import {
+  LocationPicker,
+  type InitialAreaOption,
+} from "@/components/forms/location-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type {
+  LocationDistrictOption,
+  LocationStateOption,
+} from "@/services/location-directory";
 import type { AuthActionState } from "@/types/auth";
 
 interface BusinessProfile {
@@ -23,12 +31,6 @@ interface BusinessProfile {
   google_business_url: string | null;
   public_availability_enabled: boolean;
   status: string;
-}
-
-interface AreaOption {
-  id: string;
-  name: string;
-  postal_code: string | null;
 }
 
 function Field({
@@ -67,11 +69,15 @@ function Field({
 export function BusinessProfileForm({
   businessId,
   business,
-  areas,
+  states,
+  districts,
+  initialArea,
 }: {
   businessId: string;
   business: BusinessProfile;
-  areas: AreaOption[];
+  states: LocationStateOption[];
+  districts: LocationDistrictOption[];
+  initialArea: InitialAreaOption | null;
 }) {
   const action = updateBusinessProfileAction.bind(null, businessId);
   const [state, formAction, pending] = useActionState<
@@ -140,35 +146,20 @@ export function BusinessProfileForm({
         defaultValue={business.address_line2 ?? ""}
         maxLength={240}
       />
-      {areas.length > 0 ? (
-        <label className="grid gap-2 text-sm font-medium text-slate-800">
-          Mapped area
-          <select
-            name="area_id"
-            defaultValue={business.area_id ?? ""}
-            className="h-11 rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-900 outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15"
-          >
-            <option value="">Select an area</option>
-            {areas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.name}
-                {area.postal_code ? ` · ${area.postal_code}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+      {districts.length > 0 ? (
+        <LocationPicker
+          states={states}
+          districts={districts}
+          initialArea={initialArea}
+          initialPostalCode={business.postal_code ?? ""}
+          label="Mapped business area"
+        />
       ) : (
         <div className="rounded-xl bg-amber-50 p-3 text-sm leading-5 text-amber-950">
           No DawaSetu areas are configured yet. Location-based requests will not
           be matched to this business.
         </div>
       )}
-      <Field
-        label="PIN code"
-        name="postal_code"
-        defaultValue={business.postal_code ?? ""}
-        maxLength={6}
-      />
       <Field
         label="Latitude (optional)"
         name="latitude"
