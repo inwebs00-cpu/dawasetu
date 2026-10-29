@@ -50,8 +50,11 @@ const migrationPaths = [
   "supabase/migrations/20261016010000_admin_payment_gateway_settings.sql",
   "supabase/migrations/20261016020000_first_login_password_change.sql",
   "supabase/migrations/20261016030000_bulk_medicine_import_and_public_discovery.sql",
-"supabase/migrations/20261027010000_homepage_banner_management.sql",
+  "supabase/migrations/20261027010000_homepage_banner_management.sql",
   "supabase/migrations/20261027020000_seed_additional_homepage_banners.sql",
+  "supabase/migrations/20261029010000_public_health_facility_types.sql",
+  "supabase/migrations/20261029020000_import_indian_medicine_catalog.sql",
+  "supabase/migrations/20261029030000_seed_assam_locations.sql",
 ].map((path) => resolve(process.cwd(), path));
 
 describe("DawaSetu core schema migration", () => {
@@ -126,7 +129,7 @@ describe("DawaSetu core schema migration", () => {
 
     expect(tables.rows.length).toBeGreaterThan(30);
     expect(tables.rows.every((table) => table.rls_enabled)).toBe(true);
-    expect(businessTypes.rows[0].count).toBe(4);
+    expect(businessTypes.rows[0].count).toBe(8);
     expect(roles.rows[0].count).toBeGreaterThan(0);
     expect(
       tables.rows.some((table) => table.name === "payment_gateway_state"),
@@ -146,8 +149,113 @@ describe("DawaSetu core schema migration", () => {
     expect(passwordChangeColumn.rows[0].exists).toBe(true);
   });
 
+  it("keeps the import staging table private and only grants its import RPC to service role", async () => {
+    const privileges = await database.query<{
+      anon_select: boolean;
+      authenticated_select: boolean;
+      anon_import: boolean;
+      authenticated_import: boolean;
+      service_role_import: boolean;
+      staging_rls: boolean;
+    }>(`
+      select
+        has_table_privilege('anon', 'public.medicine_catalog_import_20261029', 'select') as anon_select,
+        has_table_privilege('authenticated', 'public.medicine_catalog_import_20261029', 'select') as authenticated_select,
+        has_function_privilege('anon', 'public.import_indian_medicine_catalog_20261029()', 'execute') as anon_import,
+        has_function_privilege('authenticated', 'public.import_indian_medicine_catalog_20261029()', 'execute') as authenticated_import,
+        has_function_privilege('service_role', 'public.import_indian_medicine_catalog_20261029()', 'execute') as service_role_import,
+        (select c.relrowsecurity from pg_catalog.pg_class c where c.oid = 'public.medicine_catalog_import_20261029'::regclass) as staging_rls;
+    `);
+
+    expect(privileges.rows[0]).toEqual({
+      anon_select: false,
+      authenticated_select: false,
+      anon_import: false,
+      authenticated_import: false,
+      service_role_import: true,
+      staging_rls: true,
+    });
+  });
+
+  it("publishes clean active catalog records while hiding conflicted and discontinued rows", async () => {
+    await database.query(`
+      insert into public.medicine_catalog_import_20261029
+        (source_key, product_name, brand_name, composition, strength, manufacturer,
+         medicine_type, prescription_class, public_visibility, source_is_discontinued,
+         source_flags)
+      values
+        ('clean-1', 'Clean Import Tablet', 'Clean Import', 'Example Ingredient', '10 mg', 'Example Manufacturer', 'tablet', 'unknown', true, false, null),
+        ('flagged-1', 'Flagged Import Tablet', 'Flagged Import', 'Other Ingredient', '20 mg', 'Example Manufacturer', 'tablet', 'unknown', false, false, 'conflicting source data'),
+        ('discontinued-1', 'Discontinued Import Tablet', 'Discontinued Import', 'Third Ingredient', '30 mg', 'Example Manufacturer', 'tablet', 'unknown', false, true, null);
+    `);
+    const imported = await database.query<{ changed_rows: number }>(
+      "select public.import_indian_medicine_catalog_20261029() as changed_rows",
+    );
+    const records = await database.query<{
+      status: string;
+      public_visibility: boolean;
+      regulatory_schedule: string[];
+    }>(`
+      select status, public_visibility, regulatory_schedule
+      from public.medicines
+      where catalog_source_key in ('clean-1', 'flagged-1', 'discontinued-1')
+      order by catalog_source_key;
+    `);
+
+    expect(imported.rows[0].changed_rows).toBe(3);
+    expect(records.rows).toEqual([
+      { status: "approved", public_visibility: true, regulatory_schedule: [] },
+      { status: "inactive", public_visibility: false, regulatory_schedule: [] },
+      { status: "pending", public_visibility: false, regulatory_schedule: [] },
+    ]);
+  });
+
+  it("seeds Assam's districts and post-office locations as public lookup data", async () => {
+    const counts = await database.query<{
+      state_count: number;
+      district_count: number;
+      area_count: number;
+      tamulpur_pin: string | null;
+      sample_pin: string | null;
+    }>(`
+      select
+        (select count(*)::int from public.states where name = 'Assam') as state_count,
+        (select count(*)::int from public.districts d join public.states s on s.id = d.state_id where s.name = 'Assam') as district_count,
+        (select count(*)::int from public.areas a join public.districts d on d.id = a.district_id join public.states s on s.id = d.state_id where s.name = 'Assam' and a.is_active) as area_count,
+        (select a.postal_code from public.areas a join public.districts d on d.id = a.district_id join public.states s on s.id = d.state_id where s.name = 'Assam' and d.name = 'Tamulpur' and a.name = 'Tamulpur' limit 1) as tamulpur_pin,
+        (select a.postal_code from public.areas a join public.districts d on d.id = a.district_id join public.states s on s.id = d.state_id where s.name = 'Assam' and d.name = 'Dibrugarh' and a.name = 'Dibrugarh' limit 1) as sample_pin;
+    `);
+    const lookupAccess = await database.query<{
+      anon_select: boolean;
+      authenticated_select: boolean;
+    }>(`
+      select
+        has_table_privilege('anon', 'public.states', 'select')
+          and has_table_privilege('anon', 'public.districts', 'select')
+          and has_table_privilege('anon', 'public.areas', 'select') as anon_select,
+        has_table_privilege('authenticated', 'public.states', 'select')
+          and has_table_privilege('authenticated', 'public.districts', 'select')
+          and has_table_privilege('authenticated', 'public.areas', 'select') as authenticated_select;
+    `);
+
+    expect(counts.rows[0]).toEqual({
+      state_count: 1,
+      district_count: 35,
+      area_count: 4064,
+      tamulpur_pin: "781367",
+      sample_pin: expect.any(String),
+    });
+    expect(lookupAccess.rows[0]).toEqual({
+      anon_select: true,
+      authenticated_select: true,
+    });
+  });
+
   it("publishes the supplied homepage banner through a restricted RPC", async () => {
-    const banner = await database.query<{ image_path: string; is_active: boolean }>(
+    const banner = await database.query<{
+      image_path: string;
+      is_active: boolean;
+    }>(
       "select image_path, is_active from public.homepage_banners where title = 'DawaSetu connects people to pharmacies'",
     );
     const privileges = await database.query<{
@@ -3668,5 +3776,4 @@ describe("DawaSetu core schema migration", () => {
       },
     ]);
   });
-
 });

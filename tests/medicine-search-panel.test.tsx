@@ -1,12 +1,19 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { searchNearbyAction } = vi.hoisted(() => ({
-  searchNearbyAction: vi.fn(),
-}));
+const { routerPush, searchNearbyAction, saveMyMedicineAction } = vi.hoisted(
+  () => ({
+    routerPush: vi.fn(),
+    searchNearbyAction: vi.fn(),
+    saveMyMedicineAction: vi.fn(),
+  }),
+);
 
-vi.mock("@/app/medicines/actions", () => ({ searchNearbyAction }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@/app/medicines/actions", () => ({
+  searchNearbyAction,
+  saveMyMedicineAction,
+}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: routerPush }) }));
 
 import { MedicineSearchPanel } from "@/components/search/medicine-search-panel";
 
@@ -82,5 +89,49 @@ describe("MedicineSearchPanel location search", () => {
       await screen.findByText(/Allow location for this site in your browser/),
     ).toBeTruthy();
     expect(searchNearbyAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("MedicineSearchPanel catalogue results", () => {
+  beforeEach(() => {
+    routerPush.mockReset();
+    searchNearbyAction.mockReset();
+  });
+
+  it("shows catalogue results without claiming stock when live availability fails", () => {
+    render(
+      <MedicineSearchPanel
+        query="Augmentin"
+        categorySlug={null}
+        categories={[]}
+        backendConfigured
+        initialResult={{
+          status: "ready",
+          rows: [],
+          availabilityUnavailable: true,
+          catalogRows: [
+            {
+              medicine_id: "11111111-1111-4111-8111-111111111111",
+              product_name: "Augmentin 625 Tablet",
+              brand_name: "Augmentin",
+              composition: "Amoxicillin + Clavulanic Acid",
+              strength: "625 mg",
+              manufacturer_name: "Example Pharma",
+              medicine_type: "tablet",
+              prescription_class: "prescription",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Live pharmacy availability could not be checked",
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText("Augmentin 625 Tablet")).toBeTruthy();
+    expect(screen.getByText("Live stock unavailable")).toBeTruthy();
+    expect(screen.queryByText("No public stock reported")).toBeNull();
   });
 });
