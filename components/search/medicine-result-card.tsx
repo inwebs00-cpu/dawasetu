@@ -81,6 +81,12 @@ export function MedicineResultCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-1.5 text-sm text-slate-600">
+          <p>
+            <span className="font-medium text-slate-800">
+              Regulatory schedule:
+            </span>{" "}
+            Confirm the current pack label with a pharmacist
+          </p>
           {result.composition && (
             <p>
               <span className="font-medium text-slate-800">Composition:</span>{" "}
