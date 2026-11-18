@@ -472,7 +472,7 @@ export async function verifyPasswordResetOtpAction(
   const email = normalizedEmail(textField(formData, "email"));
   const token = textField(formData, "token").trim();
   if (!email) return { error: "Enter the email address used for this request." };
-  if (!/^\\d{6,10}$/.test(token)) {
+  if (!/^\d{6,10}$/.test(token)) {
     return { error: "Enter the 6 to 10 digit code from your reset email." };
   }
 
