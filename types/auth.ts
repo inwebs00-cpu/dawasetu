@@ -3,5 +3,7 @@ export interface AuthActionState {
   message?: string;
   otpRequested?: boolean;
   confirmationRequired?: boolean;
+  passwordResetRequested?: boolean;
+  passwordResetReady?: boolean;
   email?: string;
 }
