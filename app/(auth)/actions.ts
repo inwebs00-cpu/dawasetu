@@ -15,6 +15,7 @@ import {
 } from "@/lib/auth/login-portals";
 import { getSafeNextPath } from "@/lib/auth/safe-next-path";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSignupEmailError, logSignupEmailError } from "@/lib/auth/email-confirmation-error";
 import type { AuthActionState } from "@/types/auth";
 
 function textField(formData: FormData, name: string): string {
@@ -326,16 +327,95 @@ export async function signUpAction(
         emailRedirectTo: `${siteOrigin()}/auth/callback?next=/account`,
       },
     });
-    if (error)
-      return {
-        error:
-          "We could not create the account. Check your details and try again.",
-      };
+    if (error) {
+      logSignupEmailError(error);
+      return { error: getSignupEmailError(error) };
+    }
     if (data.session)
       return await redirectAfterAuthentication(supabase, "/account");
     // Supabase may return a user without identities for an existing email. Keep
     // the response identical so the registration form cannot enumerate users.
-    redirect("/check-email");
+    return {
+      confirmationRequired: true,
+      email,
+      message:
+        "If this address can be registered, Supabase has requested a verification email. Use the email code below or open its verification link.",
+    };
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    logSignupEmailError(error);
+    return { error: getSignupEmailError(error) };
+  }
+}
+
+export async function resendSignupConfirmationAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const email = normalizedEmail(textField(formData, "email"));
+  if (!email) return { error: "Enter a valid email address." };
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: `${siteOrigin()}/auth/callback?next=%2Faccount`,
+      },
+    });
+    if (error) {
+      logSignupEmailError(error);
+      return {
+        confirmationRequired: true,
+        email,
+        error: getSignupEmailError(error),
+      };
+    }
+    return {
+      confirmationRequired: true,
+      email,
+      message:
+        "If this address has a pending signup, a fresh verification email has been requested. Check your inbox and spam folder.",
+    };
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    logSignupEmailError(error);
+    return {
+      confirmationRequired: true,
+      email,
+      error: getSignupEmailError(error),
+    };
+  }
+}
+
+export async function verifySignupOtpAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const email = normalizedEmail(textField(formData, "email"));
+  const token = textField(formData, "token").trim();
+  if (!email) return { error: "Enter the email address used to sign up." };
+  if (!/^\d{6,10}$/.test(token)) {
+    return {
+      error: "Enter the 6 to 10 digit code from the verification email.",
+    };
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "signup",
+    });
+    if (error || !data.user) {
+      return {
+        error:
+          "That verification code is invalid or expired. Request a fresh email and try again.",
+      };
+    }
+    return await redirectAfterAuthentication(supabase, "/account");
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
     return clientError();
