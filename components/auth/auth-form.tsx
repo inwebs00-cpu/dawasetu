@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -12,6 +12,7 @@ import {
   signUpAction,
   updatePasswordAction,
   verifyAdminOtpAction,
+  verifyPasswordResetOtpAction,
   verifySignupOtpAction,
 } from "@/app/(auth)/actions";
 import { ADMIN_LOGIN_EMAIL } from "@/lib/auth/admin-login-identifier";
@@ -508,30 +509,108 @@ export function SignupForm() {
 }
 
 export function ForgotPasswordForm() {
+  const [requestState, requestAction, requestPending] = useActionState(
+    requestPasswordResetAction,
+    {},
+  );
+  const [verifyState, verifyAction, verifyPending] = useActionState(
+    verifyPasswordResetOtpAction,
+    {},
+  );
+  const [email, setEmail] = useState("");
+  const [expiredLink, setExpiredLink] = useState(false);
+
+  useEffect(() => {
+    setExpiredLink(
+      new URLSearchParams(window.location.search).get("error") === "link",
+    );
+  }, []);
+
+  if (verifyState.passwordResetReady) {
+    return <UpdatePasswordForm />;
+  }
+
   return (
-    <FormFrame
-      title="Reset your password"
-      intro="Enter your account email. If it matches an account, we’ll send a secure reset link."
-      action={requestPasswordResetAction}
-      submitLabel="Send reset link"
-      footer={
+    <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_28px_70px_-42px_rgba(15,76,78,0.35)] sm:p-8">
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
+        Reset your password
+      </h1>
+      <p className="mt-2 text-sm leading-6 text-slate-600">
+        Enter your account email. We’ll send a one-time code so you can set a new password here.
+      </p>
+      {expiredLink && (
+        <p
+          role="status"
+          className="mt-4 rounded-xl bg-amber-50 px-3.5 py-3 text-sm text-amber-900"
+        >
+          That reset link expired or was already used. Request a fresh code below; you won’t need to open an email link.
+        </p>
+      )}
+      <form action={requestAction} className="mt-6 grid gap-4">
+        <label
+          htmlFor="reset-email"
+          className="grid gap-2 text-sm font-medium text-slate-800"
+        >
+          Email
+          <Input
+            id="reset-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            maxLength={254}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+        </label>
+        <Feedback state={requestState} />
+        <Button type="submit" className="w-full" disabled={requestPending}>
+          {requestPending ? "Sending code…" : "Send reset code"}
+        </Button>
+      </form>
+      {requestState.passwordResetRequested && requestState.email && (
+        <form action={verifyAction} className="mt-5 grid gap-4">
+          <input type="hidden" name="email" value={requestState.email} />
+          <label
+            htmlFor="password-reset-code"
+            className="grid gap-2 text-sm font-medium text-slate-800"
+          >
+            Reset code
+            <Input
+              id="password-reset-code"
+              name="token"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6,10}"
+              minLength={6}
+              maxLength={10}
+              placeholder="Enter the code from your email"
+              required
+            />
+          </label>
+          <Feedback state={verifyState} />
+          <Button type="submit" className="w-full" disabled={verifyPending}>
+            {verifyPending ? "Verifying code…" : "Verify code"}
+          </Button>
+          <button
+            type="submit"
+            formAction={requestAction}
+            className="text-sm font-semibold text-teal-800 hover:underline"
+            disabled={requestPending}
+          >
+            {requestPending ? "Sending code…" : "Send another code"}
+          </button>
+        </form>
+      )}
+      <div className="mt-6 border-t border-slate-100 pt-5 text-sm text-slate-600">
         <Link
           className="font-semibold text-teal-800 hover:underline"
           href="/login"
         >
           Back to sign in
         </Link>
-      }
-    >
-      <Field
-        id="reset-email"
-        label="Email"
-        name="email"
-        type="email"
-        autoComplete="email"
-        maxLength={254}
-      />
-    </FormFrame>
+      </div>
+    </section>
   );
 }
 
@@ -548,7 +627,7 @@ export function UpdatePasswordForm({
       intro={
         firstLogin
           ? "For account security, choose a new password before opening your workspace. Use at least 12 characters."
-          : "Reset links are single-use and expire. Choose a password with at least 12 characters."
+          : "Your email is verified. Choose a new password with at least 12 characters."
       }
       action={updatePasswordAction}
       submitLabel={firstLogin ? "Save new password" : "Update password"}
@@ -562,7 +641,7 @@ export function UpdatePasswordForm({
             className="font-semibold text-teal-800 hover:underline"
             href="/forgot-password"
           >
-            Request another reset link
+            Request another reset code
           </Link>
         )
       }

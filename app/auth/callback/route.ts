@@ -30,10 +30,14 @@ export async function GET(request: NextRequest) {
   const next = safePath(request.nextUrl.searchParams.get("next"));
   const callbackError = request.nextUrl.searchParams.get("error");
   const loginPath = next === "/admin" ? "/admin/login" : "/login";
+  const failurePath =
+    next === "/reset-password"
+      ? "/forgot-password?error=link"
+      : `${loginPath}?error=link`;
 
   if (callbackError) {
     return NextResponse.redirect(
-      new URL(`${loginPath}?error=link`, request.url),
+      new URL(failurePath, request.url),
     );
   }
 
@@ -107,5 +111,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL(`${loginPath}?error=link`, request.url));
+  return NextResponse.redirect(new URL(failurePath, request.url));
 }

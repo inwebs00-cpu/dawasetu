@@ -431,16 +431,73 @@ export async function requestPasswordResetAction(
 
   try {
     const supabase = await createSupabaseServerClient();
-    await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteOrigin()}/auth/callback?next=/reset-password`,
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) {
+      const details = error as { code?: string; status?: number };
+      console.error("[password-reset] Supabase request failed", {
+        status: details.status ?? null,
+        code: details.code ?? "unknown",
+      });
+      return {
+        error:
+          "We couldn't send a reset code right now. Please try again shortly or contact support.",
+      };
+    }
+  } catch (error) {
+    const details =
+      error && typeof error === "object"
+        ? (error as { code?: unknown; status?: unknown })
+        : {};
+    console.error("[password-reset] Supabase request failed", {
+      status: typeof details.status === "number" ? details.status : null,
+      code: typeof details.code === "string" ? details.code : "unknown",
     });
-  } catch {
-    // Do not reveal whether the account exists or whether mail delivery failed.
+    return {
+      error:
+        "We couldn't send a reset code right now. Please try again shortly or contact support.",
+    };
   }
   return {
+    passwordResetRequested: true,
+    email,
     message:
-      "If an account matches that email, password reset instructions will arrive shortly.",
+      "If an account matches that email, a reset code has been requested. Check your inbox and spam folder, then enter the code below.",
   };
+}
+
+export async function verifyPasswordResetOtpAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const email = normalizedEmail(textField(formData, "email"));
+  const token = textField(formData, "token").trim();
+  if (!email) return { error: "Enter the email address used for this request." };
+  if (!/^\d{6,10}$/.test(token)) {
+    return { error: "Enter the 6 to 10 digit code from your reset email." };
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "recovery",
+    });
+    if (error || !data.user) {
+      return {
+        error:
+          "That reset code is invalid or expired. Request a fresh code and try again.",
+      };
+    }
+    return {
+      passwordResetReady: true,
+      email,
+      message: "Email verified. Choose a new password below.",
+    };
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    return clientError();
+  }
 }
 
 export async function updatePasswordAction(
@@ -481,7 +538,7 @@ export async function updatePasswordAction(
     if (error)
       return {
         error:
-          "The password could not be updated. Request a new reset link and try again.",
+          "The password could not be updated. Request a new reset code and try again.",
       };
     if (admin) {
       const { error: clearError } = await admin
