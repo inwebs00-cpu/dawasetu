@@ -7,10 +7,12 @@ import type { ReactNode } from "react";
 import {
   requestPasswordResetAction,
   requestAdminOtpAction,
+  resendSignupConfirmationAction,
   signInAction,
   signUpAction,
   updatePasswordAction,
   verifyAdminOtpAction,
+  verifySignupOtpAction,
 } from "@/app/(auth)/actions";
 import { ADMIN_LOGIN_EMAIL } from "@/lib/auth/admin-login-identifier";
 import type { AuthActionState } from "@/types/auth";
@@ -366,54 +368,142 @@ export function AdminOtpLoginForm() {
 }
 
 export function SignupForm() {
-  return (
-    <FormFrame
-      title="Create your account"
-      intro="Use your account to save searches and request medicine availability."
-      action={signUpAction}
-      submitLabel="Create account"
-      footer={
-        <>
-          <span>Already registered? </span>
+  const [state, signUpFormAction, signUpPending] = useActionState(
+    signUpAction,
+    {},
+  );
+  const [verifyState, verifyFormAction, verifyPending] = useActionState(
+    verifySignupOtpAction,
+    {},
+  );
+  const [resendState, resendFormAction, resendPending] = useActionState(
+    resendSignupConfirmationAction,
+    {},
+  );
+
+  if (state.confirmationRequired && state.email) {
+    return (
+      <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_28px_70px_-42px_rgba(15,76,78,0.35)] sm:p-8">
+        <p className="text-sm font-semibold text-teal-800">
+          Email verification
+        </p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+          Check your inbox
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          We requested a verification email for <strong>{state.email}</strong>.
+          Enter its code here, or open the verification link in the message.
+          Check spam too.
+        </p>
+
+        <form action={verifyFormAction} className="mt-6 grid gap-4">
+          <input type="hidden" name="email" value={state.email} />
+          <label
+            htmlFor="signup-verification-code"
+            className="grid gap-2 text-sm font-medium text-slate-800"
+          >
+            Email verification code
+            <Input
+              id="signup-verification-code"
+              name="token"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6,10}"
+              minLength={6}
+              maxLength={10}
+              required
+              aria-describedby="signup-verification-help"
+              placeholder="Enter the code from your email"
+            />
+          </label>
+          <p id="signup-verification-help" className="text-xs text-slate-500">
+            This works when your Supabase email template includes the one-time
+            code.
+          </p>
+          <Feedback state={verifyState} />
+          <Button type="submit" className="w-full" disabled={verifyPending}>
+            {verifyPending ? "Verifying…" : "Verify email and continue"}
+          </Button>
+        </form>
+
+        <form action={resendFormAction} className="mt-4 grid gap-3">
+          <input type="hidden" name="email" value={state.email} />
+          <Feedback state={resendState} />
+          <Button
+            type="submit"
+            variant="outline"
+            className="w-full"
+            disabled={resendPending}
+          >
+            {resendPending ? "Requesting…" : "Send verification email again"}
+          </Button>
+        </form>
+        <p className="mt-5 border-t border-slate-100 pt-5 text-sm text-slate-600">
+          Already verified?{" "}
           <Link
             className="font-semibold text-teal-800 hover:underline"
             href="/login"
           >
             Sign in
           </Link>
-        </>
-      }
-    >
-      <Field
-        id="signup-name"
-        label="Full name"
-        name="full_name"
-        autoComplete="name"
-        minLength={2}
-        maxLength={160}
-      />
-      <Field
-        id="signup-email"
-        label="Email"
-        name="email"
-        type="email"
-        autoComplete="email"
-        maxLength={254}
-      />
-      <Field
-        id="signup-password"
-        label="Password (12 characters minimum)"
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        minLength={12}
-        maxLength={128}
-      />
-      <p className="-mt-3 text-xs leading-5 text-slate-500">
-        Your account starts with customer access. Partner access is reviewed
-        separately.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_28px_70px_-42px_rgba(15,76,78,0.35)] sm:p-8">
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
+        Create your account
+      </h1>
+      <p className="mt-2 text-sm leading-6 text-slate-600">
+        Use your account to save searches and request medicine availability.
       </p>
-    </FormFrame>
+      <form action={signUpFormAction} className="mt-7 grid gap-5">
+        <Field
+          id="signup-name"
+          label="Full name"
+          name="full_name"
+          autoComplete="name"
+          minLength={2}
+          maxLength={160}
+        />
+        <Field
+          id="signup-email"
+          label="Email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          maxLength={254}
+        />
+        <Field
+          id="signup-password"
+          label="Password (12 characters minimum)"
+          name="password"
+          type="password"
+          autoComplete="new-password"
+          minLength={12}
+          maxLength={128}
+        />
+        <p className="-mt-3 text-xs leading-5 text-slate-500">
+          Your account starts with customer access. Partner access is reviewed
+          separately.
+        </p>
+        <Feedback state={state} />
+        <Button type="submit" className="w-full" disabled={signUpPending}>
+          {signUpPending ? "Creating account…" : "Create account"}
+        </Button>
+      </form>
+      <div className="mt-6 border-t border-slate-100 pt-5 text-sm text-slate-600">
+        <span>Already registered? </span>
+        <Link
+          className="font-semibold text-teal-800 hover:underline"
+          href="/login"
+        >
+          Sign in
+        </Link>
+      </div>
+    </section>
   );
 }
 
