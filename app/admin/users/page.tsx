@@ -20,6 +20,8 @@ type UserRow = {
   phone_e164: string | null;
   account_type: string;
   user_status: string;
+  email_confirmed_at: string | null;
+  verification_status: string;
   created_at: string;
   last_login_at: string | null;
   business_count: number;
@@ -31,6 +33,7 @@ type SearchParams = Promise<{
   search?: string;
   account_type?: string;
   status?: string;
+  verification_status?: string;
   page?: string;
   updated?: string;
   error?: string;
@@ -83,13 +86,19 @@ export default async function AdminUsersPage({
     ? params.account_type!
     : "";
   const status = statuses.includes(params.status ?? "") ? params.status! : "";
+  const verificationStatus = ["pending", "verified"].includes(
+    params.verification_status ?? "",
+  )
+    ? params.verification_status!
+    : "";
   const page = Math.max(0, Math.min(200, Number(params.page) || 0));
   const { supabase } = await requirePlatformPermission("users.view");
   const [usersResult, managePermission] = await Promise.all([
-    supabase.rpc("admin_list_users", {
+    supabase.rpc("admin_list_user_directory", {
       p_search: search || null,
       p_account_type: accountType || null,
       p_status: status || null,
+      p_verification_status: verificationStatus || null,
       p_limit: 50,
       p_offset: page * 50,
     }),
@@ -111,6 +120,7 @@ export default async function AdminUsersPage({
   if (search) query.set("search", search);
   if (accountType) query.set("account_type", accountType);
   if (status) query.set("status", status);
+  if (verificationStatus) query.set("verification_status", verificationStatus);
   const previousQuery = new URLSearchParams(query);
   const nextQuery = new URLSearchParams(query);
   if (page > 0) previousQuery.set("page", String(page - 1));
@@ -130,9 +140,9 @@ export default async function AdminUsersPage({
           Users and patients
         </h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Search verified DawaSetu accounts and review their partner links.
-          Account access changes require current-password confirmation and an
-          audit reason.
+          Review registered users, including accounts waiting for email
+          verification. Account access changes require current-password
+          confirmation and an audit reason.
         </p>
 
         {params.updated && (
@@ -164,7 +174,7 @@ export default async function AdminUsersPage({
           <CardContent className="p-4 sm:p-5">
             <form
               method="get"
-              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+              className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
             >
               <label className="grid gap-1 text-xs font-medium text-slate-700">
                 Search name, email, or phone
@@ -203,6 +213,18 @@ export default async function AdminUsersPage({
                       {value}
                     </option>
                   ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-xs font-medium text-slate-700">
+                Email verification
+                <select
+                  name="verification_status"
+                  defaultValue={verificationStatus}
+                  className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900"
+                >
+                  <option value="">All verification states</option>
+                  <option value="pending">Waiting for verification</option>
+                  <option value="verified">Verified email</option>
                 </select>
               </label>
               <div className="flex items-end gap-2">
@@ -280,6 +302,26 @@ export default async function AdminUsersPage({
                       <dd className="mt-1 font-medium text-slate-900">
                         {account.platform_roles.join(", ") ||
                           "Customer / partner only"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Email verification</dt>
+                      <dd className="mt-1">
+                        <span
+                          className={
+                            account.verification_status === "pending"
+                              ? "inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900"
+                              : account.verification_status === "verified"
+                                ? "inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-900"
+                                : "inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"
+                          }
+                        >
+                          {account.verification_status === "pending"
+                            ? "Waiting for verification"
+                            : account.verification_status === "verified"
+                              ? "Verified"
+                              : "No email"}
+                        </span>
                       </dd>
                     </div>
                     <div>
