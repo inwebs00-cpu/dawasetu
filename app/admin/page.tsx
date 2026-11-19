@@ -560,9 +560,24 @@ export default async function AdminDashboardPage() {
                   <CardHeader>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <CardTitle>Recent partner registrations</CardTitle>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href="/admin/partners">Review partners</Link>
-                      </Button>
+                      {canApprovePartners ? (
+                        <Button asChild size="sm">
+                          <Link href="/admin/partners?status=pending">
+                            Approve pending
+                            {summary && (
+                              <span className="ml-1 rounded-full bg-white/20 px-2 py-0.5 text-xs">
+                                {Number(summary.pending_partners).toLocaleString(
+                                  "en-IN",
+                                )}
+                              </span>
+                            )}
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button asChild variant="outline" size="sm">
+                          <Link href="/admin/partners">Review partners</Link>
+                        </Button>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent>
