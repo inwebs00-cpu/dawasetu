@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { requirePlatformPermission } from "@/lib/auth/authorization";
+import { listAuthUserDirectoryFallback } from "@/services/admin-auth-users";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Admin dashboard" };
@@ -255,8 +256,26 @@ export default async function AdminDashboardPage() {
       ? supabase.rpc("admin_list_analytics_regions", { p_days: 30 })
       : Promise.resolve({ data: [], error: null }),
   ]);
-  const pendingVerifications = (pendingVerificationsResult.data ??
+  let pendingVerifications = (pendingVerificationsResult.data ??
     []) as PendingVerification[];
+  let usingAuthUserFallback = false;
+  if (canViewUsers && pendingVerificationsResult.error) {
+    try {
+      const authUsers = await listAuthUserDirectoryFallback();
+      pendingVerifications = authUsers
+        .filter((user) => user.verification_status === "pending")
+        .slice(0, 5)
+        .map(({ user_id, full_name, email, created_at }) => ({
+          user_id,
+          full_name,
+          email,
+          created_at,
+        }));
+      usingAuthUserFallback = true;
+    } catch (error) {
+      console.error("[admin-dashboard] pending signup fallback failed", error);
+    }
+  }
   const recentPartners = (recentPartnersResult.data ?? []) as RecentPartner[];
   const recentRequests = (recentRequestsResult.data ??
     []) as RecentAvailabilityRequest[];
@@ -496,7 +515,14 @@ export default async function AdminDashboardPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    {pendingVerificationsResult.error ? (
+                    {usingAuthUserFallback && (
+                      <p className="mb-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+                        Temporary Auth directory view. Apply the database
+                        migration for the complete account directory.
+                      </p>
+                    )}
+                    {pendingVerificationsResult.error &&
+                    !usingAuthUserFallback ? (
                       <p role="alert" className="text-sm text-rose-800">
                         Pending accounts could not be loaded right now.
                       </p>
