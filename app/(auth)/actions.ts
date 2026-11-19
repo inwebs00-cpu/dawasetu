@@ -56,6 +56,49 @@ function clientError(): AuthActionState {
   };
 }
 
+function passwordResetFailure(error: unknown): AuthActionState {
+  const details =
+    error && typeof error === "object"
+      ? (error as {
+          code?: unknown;
+          message?: unknown;
+          status?: unknown;
+        })
+      : {};
+  const code = typeof details.code === "string" ? details.code : "unknown";
+  const message = typeof details.message === "string" ? details.message : "";
+  const status = typeof details.status === "number" ? details.status : null;
+  const failure = `${code} ${message}`.toLowerCase();
+
+  console.error("[password-reset] Supabase request failed", {
+    status,
+    code,
+  });
+
+  if (
+    status === 429 ||
+    failure.includes("over_email_send_rate_limit") ||
+    failure.includes("rate limit")
+  ) {
+    return {
+      error:
+        "Reset emails are temporarily rate-limited. Wait a minute, then request a fresh code. Check your inbox and spam folder for the latest email.",
+    };
+  }
+
+  if (failure.includes("redirect") || failure.includes("redirect_to")) {
+    return {
+      error:
+        "The reset destination is not configured in Supabase. Add this site's /auth/callback URL to the Auth redirect allow list, then retry.",
+    };
+  }
+
+  return {
+    error:
+      "We couldn't request a reset email. Please check the address, wait a minute if you just tried, and try again. If it still fails, contact support.",
+  };
+}
+
 function adminOtpDeliveryFailure(error: unknown): AuthActionState {
   const details =
     error && typeof error === "object"
@@ -431,31 +474,12 @@ export async function requestPasswordResetAction(
 
   try {
     const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    if (error) {
-      const details = error as { code?: string; status?: number };
-      console.error("[password-reset] Supabase request failed", {
-        status: details.status ?? null,
-        code: details.code ?? "unknown",
-      });
-      return {
-        error:
-          "We couldn't send a reset code right now. Please try again shortly or contact support.",
-      };
-    }
-  } catch (error) {
-    const details =
-      error && typeof error === "object"
-        ? (error as { code?: unknown; status?: unknown })
-        : {};
-    console.error("[password-reset] Supabase request failed", {
-      status: typeof details.status === "number" ? details.status : null,
-      code: typeof details.code === "string" ? details.code : "unknown",
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${siteOrigin()}/auth/callback?next=%2Freset-password`,
     });
-    return {
-      error:
-        "We couldn't send a reset code right now. Please try again shortly or contact support.",
-    };
+    if (error) return passwordResetFailure(error);
+  } catch (error) {
+    return passwordResetFailure(error);
   }
   return {
     passwordResetRequested: true,
