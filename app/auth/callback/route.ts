@@ -27,13 +27,15 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const tokenHash = request.nextUrl.searchParams.get("token_hash");
   const tokenType = request.nextUrl.searchParams.get("type");
-  const next = safePath(request.nextUrl.searchParams.get("next"));
+  const requestedNext = safePath(request.nextUrl.searchParams.get("next"));
+  const isPasswordRecovery =
+    tokenType === "recovery" || requestedNext === "/reset-password";
+  const next = isPasswordRecovery ? "/reset-password" : requestedNext;
   const callbackError = request.nextUrl.searchParams.get("error");
   const loginPath = next === "/admin" ? "/admin/login" : "/login";
-  const failurePath =
-    next === "/reset-password"
-      ? "/forgot-password?error=link"
-      : `${loginPath}?error=link`;
+  const failurePath = isPasswordRecovery
+    ? "/forgot-password?error=link"
+    : `${loginPath}?error=link`;
 
   if (callbackError) {
     return NextResponse.redirect(
