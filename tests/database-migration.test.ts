@@ -55,6 +55,7 @@ const migrationPaths = [
   "supabase/migrations/20261029010000_public_health_facility_types.sql",
   "supabase/migrations/20261029020000_import_indian_medicine_catalog.sql",
   "supabase/migrations/20261029030000_seed_assam_locations.sql",
+  "supabase/migrations/20261119010000_admin_pending_email_verification.sql",
 ].map((path) => resolve(process.cwd(), path));
 
 describe("DawaSetu core schema migration", () => {
@@ -87,6 +88,7 @@ describe("DawaSetu core schema migration", () => {
         raw_user_meta_data jsonb,
         email text,
         email_confirmed_at timestamptz default now(),
+        created_at timestamptz not null default now(),
         phone text,
         phone_confirmed_at timestamptz,
         last_sign_in_at timestamptz
@@ -3337,6 +3339,11 @@ describe("DawaSetu core schema migration", () => {
         { full_name: "Inactive Customer" },
       ],
     );
+    const pendingId = randomUUID();
+    await database.query(
+      "insert into auth.users (id, email, raw_user_meta_data, email_confirmed_at) values ($1, 'sipramedical@gmail.com', $2, null)",
+      [pendingId, { display_name: "Rahul Chanda" }],
+    );
     const superRole = await database.query<{ id: string }>(
       "select id from public.roles where slug = 'super_admin' and business_id is null",
     );
@@ -3380,6 +3387,9 @@ describe("DawaSetu core schema migration", () => {
       database.query("select * from public.admin_list_users()"),
     ).rejects.toThrow(/permission denied/i);
     await expect(
+      database.query("select * from public.admin_list_user_directory()"),
+    ).rejects.toThrow(/permission denied/i);
+    await expect(
       database.query("select public.admin_set_user_status($1)", [randomUUID()]),
     ).rejects.toThrow(/permission denied/i);
     await database.exec("reset role");
@@ -3400,6 +3410,22 @@ describe("DawaSetu core schema migration", () => {
     }>(
       "select user_id, email, account_type, user_status from public.admin_list_users('searchable', null, 'active', 50, 0)",
     );
+    const pendingRegistration = await database.query<{
+      user_id: string;
+      full_name: string;
+      email: string;
+      verification_status: string;
+    }>(
+      "select user_id, full_name, email, verification_status from public.admin_list_user_directory('sipramedical@gmail.com', null, null, 'pending', 50, 0)",
+    );
+    expect(pendingRegistration.rows).toEqual([
+      {
+        user_id: pendingId,
+        full_name: "Rahul Chanda",
+        email: "sipramedical@gmail.com",
+        verification_status: "pending",
+      },
+    ]);
     expect(matches.rows).toEqual([
       {
         user_id: customerId,
