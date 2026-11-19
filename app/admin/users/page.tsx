@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { requirePlatformPermission } from "@/lib/auth/authorization";
+import { listAuthUserDirectoryFallback } from "@/services/admin-auth-users";
 
 import { setUserStatusAction } from "./actions";
 
@@ -106,7 +107,30 @@ export default async function AdminUsersPage({
       p_permission_key: "users.manage",
     }),
   ]);
-  const users = (usersResult.data ?? []) as UserRow[];
+  let users = (usersResult.data ?? []) as UserRow[];
+  let usingAuthUserFallback = false;
+  if (usersResult.error) {
+    try {
+      const fallbackUsers = await listAuthUserDirectoryFallback();
+      const searchTerm = search.toLowerCase();
+      users = fallbackUsers
+        .filter(
+          (user) =>
+            (!searchTerm ||
+              `${user.full_name} ${user.email ?? ""} ${user.phone_e164 ?? ""}`
+                .toLowerCase()
+                .includes(searchTerm)) &&
+            (!accountType || user.account_type === accountType) &&
+            (!status || user.user_status === status) &&
+            (!verificationStatus ||
+              user.verification_status === verificationStatus),
+        )
+        .slice(page * 50, page * 50 + 50);
+      usingAuthUserFallback = true;
+    } catch (error) {
+      console.error("[admin-users] Auth directory fallback failed", error);
+    }
+  }
   const canManageUsers = managePermission.data === true;
   const errorMessage =
     params.error === "reauth"
@@ -161,12 +185,22 @@ export default async function AdminUsersPage({
             {errorMessage}
           </p>
         )}
-        {usersResult.error && (
+        {usersResult.error && !usingAuthUserFallback && (
           <p
             role="alert"
             className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-900"
           >
             User records are temporarily unavailable.
+          </p>
+        )}
+        {usingAuthUserFallback && (
+          <p
+            role="status"
+            className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"
+          >
+            Showing up to 1,000 accounts from Supabase Auth while the database
+            migration is pending. Business and role details appear after the
+            full directory is restored.
           </p>
         )}
 
