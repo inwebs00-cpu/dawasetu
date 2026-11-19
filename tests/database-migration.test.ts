@@ -3344,6 +3344,7 @@ describe("DawaSetu core schema migration", () => {
       "insert into auth.users (id, email, raw_user_meta_data, email_confirmed_at) values ($1, 'sipramedical@gmail.com', $2, null)",
       [pendingId, { display_name: "Rahul Chanda" }],
     );
+    await database.query("delete from public.users where id = $1", [pendingId]);
     const superRole = await database.query<{ id: string }>(
       "select id from public.roles where slug = 'super_admin' and business_id is null",
     );
