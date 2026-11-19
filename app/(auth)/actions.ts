@@ -36,13 +36,12 @@ function validPassword(value: string): boolean {
 }
 
 function siteOrigin(): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL;
-  const origin =
-    configured ||
-    (process.env.NODE_ENV !== "production" ? "http://localhost:3000" : "");
-  if (!origin)
-    throw new Error("NEXT_PUBLIC_SITE_URL is required in production.");
-  const parsed = new URL(origin);
+  if (process.env.NODE_ENV === "production") {
+    return "https://www.dawasetu.online";
+  }
+
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const parsed = new URL(configured || "http://localhost:3000");
   if (parsed.protocol !== "https:" && parsed.hostname !== "localhost") {
     throw new Error("NEXT_PUBLIC_SITE_URL must use HTTPS.");
   }
@@ -485,7 +484,7 @@ export async function requestPasswordResetAction(
     passwordResetRequested: true,
     email,
     message:
-      "If an account matches that email, a reset code has been requested. Check your inbox and spam folder, then enter the code below.",
+      "If an account matches that email, a reset code has been requested. Check your inbox and spam folder, then enter the newest code below. You do not need to open the email link.",
   };
 }
 

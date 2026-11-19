@@ -536,7 +536,7 @@ export function ForgotPasswordForm() {
         Reset your password
       </h1>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        Enter your account email. We’ll send a one-time code so you can set a new password here.
+        Enter your account email. We’ll send a one-time code. Use the newest code and enter it here; you don’t need to open the email link.
       </p>
       {expiredLink && (
         <p
